@@ -53,7 +53,6 @@ button:hover {
     box-sizing: border-box;
 }
 
-/* style.css */
 .cell {
     display: flex;
     justify-content: center;
@@ -64,11 +63,18 @@ button:hover {
     background-color: #fff;
     border-radius: 5px;
     cursor: pointer;
-    line-height: 1; /* ← この1行を追加 */
+    line-height: 1; /* 縦方向のズレ防止 */
 }
 
 .cell:hover {
     background-color: #f0f0f0;
+}
+
+/* レベル選択ボタン */
+#level-selection button {
+    display: inline-block;
+    width: 45%;
+    margin: 5px 2%;
 }
 
 /* モーダル用のスタイル */
@@ -98,10 +104,3 @@ button:hover {
     font-weight: bold;
     margin: 0 0 20px 0;
 }
-/* style.css の末尾に追加 */
-#level-selection button {
-    display: inline-block;
-    width: 45%;
-    margin: 5px 2%;
-}
-
