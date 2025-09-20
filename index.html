@@ -3,13 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>4x4 マルバツゲーム</title>
+    <title>マルバツゲーム</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <h1>4x4 マルバツゲーム</h1>
+    <h1>マルバツゲーム</h1>
 
-    <div id="mode-selection">
+    <div id="size-selection">
+        <h2>盤面のサイズを選んでください</h2>
+        <button class="size-btn" data-size="3">3 x 3</button>
+        <button class="size-btn" data-size="4">4 x 4</button>
+        <button class="size-btn" data-size="5">5 x 5</button>
+    </div>
+
+    <div id="mode-selection" style="display: none;">
         <h2>モードを選んでください</h2>
         <button id="one-player-btn">一人で遊ぶ</button>
         <button id="two-player-btn">二人で遊ぶ</button>
@@ -48,4 +55,3 @@
     <script src="script.js"></script>
 </body>
 </html>
-
