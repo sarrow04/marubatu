@@ -33,7 +33,11 @@ const winPatterns = [
 // ===============================================================
 
 function createBoard() {
-    boardElement.innerHTML = '';
+    // より確実にマス目を一旦すべて消去する方法に変更
+    while (boardElement.firstChild) {
+        boardElement.removeChild(boardElement.firstChild);
+    }
+
     for (let i = 0; i < 16; i++) {
         const cell = document.createElement('div');
         cell.classList.add('cell');
@@ -44,6 +48,7 @@ function createBoard() {
 }
 
 function startGame() {
+    boardElement.style.pointerEvents = 'auto'; // クリック無効化を解除
     gameActive = true;
     boardState = Array(16).fill('');
     currentPlayer = '〇';
