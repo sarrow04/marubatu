@@ -98,4 +98,10 @@ button:hover {
     font-weight: bold;
     margin: 0 0 20px 0;
 }
+/* style.css の末尾に追加 */
+#level-selection button {
+    display: inline-block;
+    width: 45%;
+    margin: 5px 2%;
+}
 
