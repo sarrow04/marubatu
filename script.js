@@ -12,6 +12,7 @@ const resetBtn = document.getElementById('reset-btn');
 const resultModal = document.getElementById('result-modal');
 const resultMessage = document.getElementById('result-message');
 const playAgainBtn = document.getElementById('play-again-btn');
+const backToMenuBtn = document.getElementById('back-to-menu-btn');
 
 // --- グローバル変数の定義 ---
 let gameMode = '';
@@ -109,7 +110,11 @@ startSecondBtn.addEventListener('click', () => {
 });
 
 resetBtn.addEventListener('click', resetToMenu);
-playAgainBtn.addEventListener('click', resetToMenu);
+playAgainBtn.addEventListener('click', () => {
+    resultModal.style.display = 'none';
+    startGame();
+});
+backToMenuBtn.addEventListener('click', resetToMenu);
 
 // ===============================================================
 // ゲーム中のメイン処理
@@ -145,7 +150,7 @@ function updateBoard(index, mark) {
 }
 
 // ===============================================================
-// AIの思考ロジック【安定版】
+// AIの思考ロジック
 // ===============================================================
 
 function aiMove() {
@@ -159,31 +164,25 @@ function aiMove() {
 }
 
 function calculateAiMove() {
-    // 優先度1: AIが勝てる手があれば、それに決める (全レベル共通)
     const winningMove = findCriticalMove(boardState, aiMark, 4);
     if (winningMove !== null) return winningMove;
 
-    // 優先度2: プレイヤーが勝つ手を阻止する (全レベル共通)
     const blockingMove = findCriticalMove(boardState, playerMark, 4);
     if (blockingMove !== null) return blockingMove;
 
-    if (selectedLevel >= 12) {
-        // 中学生以上：AIがリーチをかける手を探す
-        const setupMove = findCriticalMove(boardState, aiMark, 3);
-        if (setupMove !== null) return setupMove;
-    }
-
     if (selectedLevel >= 18) {
-         // 大人：プレイヤーのリーチを防ぐ
         const blockSetupMove = findCriticalMove(boardState, playerMark, 3);
         if (blockSetupMove !== null) return blockSetupMove;
     }
+
+    if (selectedLevel >= 12) {
+        const setupMove = findCriticalMove(boardState, aiMark, 3);
+        if (setupMove !== null) return setupMove;
+    }
     
-    // 5歳・保育園、または良い手がない場合：ランダムな手
     return findRandomMove();
 }
 
-// ヘルパー関数：あと一手でN個揃う場所を探す (勝利・阻止・リーチに使用)
 function findCriticalMove(board, mark, count) {
     const emptyCells = [];
     board.forEach((cell, index) => {
@@ -191,14 +190,11 @@ function findCriticalMove(board, mark, count) {
     });
 
     for (const cellIndex of emptyCells) {
-        // そのマスに置いたと仮定
         const tempBoard = [...board];
         tempBoard[cellIndex] = mark;
-        // 勝利パターンをチェック
         for (const pattern of winPatterns) {
             const isWinningPattern = pattern.every(index => tempBoard[index] === mark);
             if (isWinningPattern) {
-                 // 元の盤面で、そのラインがリーチだったか確認
                 let marksInPattern = 0;
                 let opponentPresent = false;
                 for(const index of pattern) {
@@ -212,18 +208,18 @@ function findCriticalMove(board, mark, count) {
     return null;
 }
 
-
-// ヘルパー関数：ランダムな空きマスを探す
 function findRandomMove() {
     const emptyCells = [];
     boardState.forEach((cell, index) => {
         if (cell === '') emptyCells.push(index);
     });
     if (emptyCells.length === 0) return null;
-    // 中央(5,6,9,10)が空いていれば優先 (少し賢く)
-    const centerCells = [5, 6, 9, 10].filter(i => emptyCells.includes(i));
-    if (selectedLevel >= 8 && centerCells.length > 0) {
-        return centerCells[Math.floor(Math.random() * centerCells.length)];
+    
+    if (selectedLevel >= 8) {
+        const centerCells = [5, 6, 9, 10].filter(i => emptyCells.includes(i));
+        if (centerCells.length > 0) {
+            return centerCells[Math.floor(Math.random() * centerCells.length)];
+        }
     }
     return emptyCells[Math.floor(Math.random() * emptyCells.length)];
 }
@@ -237,7 +233,7 @@ function checkEndCondition() {
         showResult(`勝者: ${currentPlayer}！`);
         return true;
     }
-    if (boardState.every(cell => cell === '' ? false : true)) {
+    if (boardState.every(cell => cell !== '')) {
         showResult('引き分け');
         return true;
     }
