@@ -1,8 +1,6 @@
-// script.js (全面改訂版)
-
-// --- HTML要素の取得 (一部変更) ---
+// --- HTML要素の取得 ---
 const modeSelection = document.getElementById('mode-selection');
-const levelSelection = document.getElementById('level-selection'); // ★変更
+const levelSelection = document.getElementById('level-selection');
 const gameBoard = document.getElementById('game-board');
 const boardElement = document.querySelector('.board');
 const statusElement = document.getElementById('status');
@@ -15,11 +13,11 @@ const resultModal = document.getElementById('result-modal');
 const resultMessage = document.getElementById('result-message');
 const playAgainBtn = document.getElementById('play-again-btn');
 
-// --- グローバル変数の定義 (一部追加) ---
+// --- グローバル変数の定義 ---
 let gameMode = '';
 let playerMark = '';
 let aiMark = '';
-let selectedLevel = 0; // ★追加：選択されたAIレベル
+let selectedLevel = 0;
 let currentPlayer = '〇';
 let gameActive = false;
 let boardState = Array(16).fill('');
@@ -33,13 +31,23 @@ const winPatterns = [
 // ゲームの初期化と画面生成
 // ===============================================================
 
-function createBoard() { /* 変更なし */ }
+function createBoard() {
+    boardElement.innerHTML = '';
+    for (let i = 0; i < 16; i++) {
+        const cell = document.createElement('div');
+        cell.classList.add('cell');
+        cell.dataset.index = i;
+        cell.addEventListener('click', handleCellClick);
+        boardElement.appendChild(cell);
+    }
+}
+
 function startGame() {
     gameActive = true;
     boardState = Array(16).fill('');
     currentPlayer = '〇';
     modeSelection.style.display = 'none';
-    levelSelection.style.display = 'none'; // ★変更
+    levelSelection.style.display = 'none';
     gameBoard.style.display = 'block';
     createBoard();
     statusElement.textContent = `次のターン: ${currentPlayer}`;
@@ -48,39 +56,54 @@ function startGame() {
         setTimeout(aiMove, 500);
     }
 }
-function resetToMenu() { /* 変更なし */ }
+
+function resetToMenu() {
+    gameActive = false;
+    gameMode = '';
+    playerMark = '';
+    aiMark = '';
+    selectedLevel = 0; // レベル選択もリセット
+    document.querySelectorAll('.level-btn').forEach(btn => btn.style.backgroundColor = '#007bff');
+    
+    resultModal.style.display = 'none';
+    modeSelection.style.display = 'block';
+    gameBoard.style.display = 'none';
+    levelSelection.style.display = 'none';
+}
 
 // ===============================================================
-// イベントリスナー (レベル選択処理を追加)
+// イベントリスナー
 // ===============================================================
 
 onePlayerBtn.addEventListener('click', () => {
     gameMode = 'one-player';
     modeSelection.style.display = 'none';
-    levelSelection.style.display = 'block'; // ★変更
+    levelSelection.style.display = 'block';
 });
 
-// ★★★ レベル選択ボタンの処理 ★★★
+twoPlayerBtn.addEventListener('click', () => {
+    gameMode = 'two-player';
+    playerMark = '〇';
+    startGame();
+});
+
 document.querySelectorAll('.level-btn').forEach(button => {
     button.addEventListener('click', () => {
         selectedLevel = parseInt(button.dataset.level);
-        // 選択されたボタンをハイライト（任意）
         document.querySelectorAll('.level-btn').forEach(btn => btn.style.backgroundColor = '#007bff');
         button.style.backgroundColor = '#0056b3';
     });
 });
 
-twoPlayerBtn.addEventListener('click', () => { /* 変更なし */ });
-
 startFirstBtn.addEventListener('click', () => {
-    if (selectedLevel === 0) { alert('AIのレベルを選んでください'); return; }
+    if (gameMode === 'one-player' && selectedLevel === 0) { alert('AIのレベルを選んでください'); return; }
     playerMark = '〇';
     aiMark = '×';
     startGame();
 });
 
 startSecondBtn.addEventListener('click', () => {
-    if (selectedLevel === 0) { alert('AIのレベルを選んでください'); return; }
+    if (gameMode === 'one-player' && selectedLevel === 0) { alert('AIのレベルを選んでください'); return; }
     playerMark = '×';
     aiMark = '〇';
     startGame();
@@ -90,16 +113,47 @@ resetBtn.addEventListener('click', resetToMenu);
 playAgainBtn.addEventListener('click', resetToMenu);
 
 // ===============================================================
-// ★★★ ここからAIの思考ロジック ★★★
+// ゲーム中のメイン処理
 // ===============================================================
 
-// AIの手を決定し、盤面に反映させる関数
+function handleCellClick(event) {
+    if (!gameActive) return;
+    const clickedCellIndex = parseInt(event.target.dataset.index);
+    if (boardState[clickedCellIndex] !== '' || (gameMode === 'one-player' && currentPlayer === aiMark)) {
+        return;
+    }
+    updateBoard(clickedCellIndex, currentPlayer);
+    if (checkEndCondition()) return;
+    switchTurn();
+    if (gameMode === 'one-player' && currentPlayer === aiMark && gameActive) {
+        statusElement.textContent = 'AIのターン...';
+        boardElement.style.pointerEvents = 'none';
+        setTimeout(() => {
+            aiMove();
+            if(gameActive) {
+                boardElement.style.pointerEvents = 'auto';
+            }
+        }, 500);
+    }
+}
+
+function switchTurn() {
+    currentPlayer = (currentPlayer === '〇') ? '×' : '〇';
+    statusElement.textContent = `次のターン: ${currentPlayer}`;
+}
+
+function updateBoard(index, mark) {
+    boardState[index] = mark;
+    document.querySelector(`.cell[data-index='${index}']`).textContent = mark;
+}
+
+// ===============================================================
+// AIの思考ロジック
+// ===============================================================
+
 function aiMove() {
     if (!gameActive) return;
-
-    // レベルに応じた思考関数を呼び出し、最善手を取得
     const move = calculateAiMove(boardState, aiMark, selectedLevel);
-
     if (move !== null) {
         updateBoard(move, aiMark);
         if (checkEndCondition()) return;
@@ -107,94 +161,82 @@ function aiMove() {
     }
 }
 
-// AIの思考本体。レベルに応じて処理を分岐
 function calculateAiMove(currentBoard, mark, level) {
     const opponentMark = (mark === '〇') ? '×' : '〇';
-    
-    // --- 共通ロジック：AIがリーチなら必ず勝つ ---
     let winningMove = findLineMove(currentBoard, mark, 4);
     if (winningMove !== null) return winningMove;
-    
-    // --- 共通ロジック：相手がリーチなら必ず防ぐ ---
     let blockingMove = findLineMove(currentBoard, opponentMark, 4);
     if (blockingMove !== null) return blockingMove;
 
-    // --- レベルごとの思考 ---
     switch(level) {
-        case 5: // 5歳 (最弱)：ランダム
+        case 5:
             return findRandomMove(currentBoard);
-
-        case 8: // 保育園：リーチをかける手を優先
-            let setupMove = findLineMove(currentBoard, mark, 3);
-            if (setupMove !== null) return setupMove;
+        case 8:
+            let setupMove8 = findLineMove(currentBoard, mark, 3);
+            if (setupMove8 !== null) return setupMove8;
             return findRandomMove(currentBoard);
-
-        case 12: // 中学生：相手のリーチ作りも防ぐ
-            let setupMove_12 = findLineMove(currentBoard, mark, 3);
-            if (setupMove_12 !== null) return setupMove_12;
+        case 12:
+            let setupMove12 = findLineMove(currentBoard, mark, 3);
+            if (setupMove12 !== null) return setupMove12;
             let blockSetupMove = findLineMove(currentBoard, opponentMark, 3);
             if (blockSetupMove !== null) return blockSetupMove;
             return findRandomMove(currentBoard);
-
-        case 18: // 大人：2手リーチや戦略的な場所を評価
-            // 複数のリーチを作れる手を探す
+        case 18:
             let bestMove = findBestScoringMove(currentBoard, mark, opponentMark);
             if (bestMove !== null) return bestMove;
-            return findRandomMove(currentBoard); // 良い手がなければランダム
+            return findRandomMove(currentBoard);
     }
     return findRandomMove(currentBoard);
 }
 
-// --- AI思考のヘルパー関数群 ---
-
-// ランダムな空きマスを探す
 function findRandomMove(board) {
     const emptyCells = board.map((cell, i) => cell === '' ? i : null).filter(v => v !== null);
     if (emptyCells.length === 0) return null;
     return emptyCells[Math.floor(Math.random() * emptyCells.length)];
 }
 
-// N個のマークが揃うマスを探す（勝利、ブロック、リーチ作成に使用）
 function findLineMove(board, mark, count) {
     const emptyCells = board.map((cell, i) => cell === '' ? i : null).filter(v => v !== null);
-    
     for (const i of emptyCells) {
         let tempBoard = [...board];
         tempBoard[i] = mark;
-        for (const pattern of winPatterns) {
-            const marksInPattern = pattern.reduce((acc, index) => acc + (tempBoard[index] === mark ? 1 : 0), 0);
-            if (marksInPattern === count) {
-                // そのラインが本当にリーチか（邪魔されていないか）をチェック
-                const lineValues = pattern.map(index => tempBoard[index]);
-                if (!lineValues.includes(mark === '〇' ? '×' : '〇')) {
-                    return i;
-                }
-            }
-        }
+        if (checkWinOnBoard(tempBoard, mark, i)) return i; // checkWinをi周辺に限定して高速化も可能
+    }
+    // 上記はcount=4の場合のみ。リーチ(count=3)を探すロジックに修正
+    for (const i of emptyCells) {
+        let tempBoard = [...board];
+        tempBoard[i] = mark;
+        if (isThreat(tempBoard, mark, count)) return i;
     }
     return null;
 }
 
-// 「大人」レベル用のスコアリング関数
+function isThreat(board, mark, count) {
+    for (const pattern of winPatterns) {
+        const marksInPattern = pattern.reduce((acc, index) => acc + (board[index] === mark ? 1 : 0), 0);
+        const emptyInPattern = pattern.reduce((acc, index) => acc + (board[index] === '' ? 1 : 0), 0);
+        if (marksInPattern === count && emptyInPattern === 4 - count) {
+            return true;
+        }
+    }
+    return false;
+}
+
 function findBestScoringMove(board, mark, opponentMark) {
     const emptyCells = board.map((cell, i) => cell === '' ? i : null).filter(v => v !== null);
     let bestScore = -1;
     let bestMove = null;
-
     for (const move of emptyCells) {
         let score = 0;
         let tempBoard = [...board];
         tempBoard[move] = mark;
-
-        // 自分がリーチをいくつ作れるか
-        score += countCreatedLines(tempBoard, mark, 3) * 5;
-        // 相手のリーチをいくつ潰せるか
-        score += countCreatedLines(board, opponentMark, 3) - countCreatedLines(tempBoard, opponentMark, 3);
+        if (isThreat(tempBoard, mark, 3)) score += 5;
+        if ([5, 6, 9, 10].includes(move)) score += 0.5;
         
-        // 中央のマスを少しだけ有利にする
-        if ([5, 6, 9, 10].includes(move)) {
-            score += 0.5;
-        }
+        let tempBoardOpponent = [...board];
+        tempBoardOpponent[move] = opponentMark;
+        if(isThreat(tempBoardOpponent, opponentMark, 3)) score += 2;
+
 
         if (score > bestScore) {
             bestScore = score;
@@ -204,25 +246,38 @@ function findBestScoringMove(board, mark, opponentMark) {
     return (bestScore > 0) ? bestMove : null;
 }
 
-function countCreatedLines(board, mark, count) {
-    let lines = 0;
-    for (const pattern of winPatterns) {
-        const marksInPattern = pattern.reduce((acc, index) => acc + (board[index] === mark ? 1 : 0), 0);
-        const emptyInPattern = pattern.reduce((acc, index) => acc + (board[index] === '' ? 1 : 0), 0);
-        if (marksInPattern === count && emptyInPattern === (4 - count)) {
-            lines++;
-        }
-    }
-    return lines;
+function checkWinOnBoard(board, mark) {
+     return winPatterns.some(pattern => {
+        return pattern.every(index => board[index] === mark);
+    });
 }
 
 
 // ===============================================================
-// 既存のゲーム進行ロジック (変更なし)
+// 勝敗判定と結果表示
 // ===============================================================
-function handleCellClick(event) { /* 変更なし */ }
-function switchTurn() { /* 変更なし */ }
-function updateBoard(index, mark) { /* 変更なし */ }
-function checkEndCondition() { /* 変更なし */ }
-function showResult(message) { /* 変更なし */ }
-function checkWin() { /* 変更なし */ }
+
+function checkEndCondition() {
+    if (checkWin()) {
+        showResult(`勝者: ${currentPlayer}！`);
+        return true;
+    }
+    if (boardState.every(cell => cell !== '')) {
+        showResult('引き分け');
+        return true;
+    }
+    return false;
+}
+
+function showResult(message) {
+    gameActive = false;
+    resultMessage.textContent = message;
+    resultModal.style.display = 'flex';
+}
+
+function checkWin() {
+    return winPatterns.some(pattern => {
+        const [a, b, c, d] = pattern;
+        return boardState[a] && boardState[a] === boardState[b] && boardState[a] === boardState[c] && boardState[a] === boardState[d];
+    });
+}
