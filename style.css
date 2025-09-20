@@ -1,23 +1,98 @@
-/* style.css */
+/* 全体のスタイル */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    text-align: center;
+    background-color: #f0f2f5;
+    color: #333;
+    padding: 10px;
+    box-sizing: border-box;
+}
+
+h1 {
+    margin-bottom: 30px;
+}
+
+h2, h3 {
+    margin-bottom: 20px;
+}
+
+button {
+    padding: 12px 25px;
+    font-size: 1em;
+    margin: 5px;
+    border-radius: 8px;
+    border: none;
+    background-color: #007bff;
+    color: white;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+button:hover {
+    background-color: #0056b3;
+}
+
+#status {
+    font-size: 1.5em;
+    margin-bottom: 20px;
+    height: 1.5em;
+}
+
+/* ゲーム盤のスタイル */
+.board {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    width: 95vw;
+    max-width: 480px;
+    margin: 20px auto;
+    aspect-ratio: 1 / 1;
+    background-color: #333;
+    gap: 5px;
+    border-radius: 8px;
+    padding: 5px;
+    box-sizing: border-box;
+}
 
 .cell {
-    /* 元のコードから変更・追加 */
     display: flex;
-    justify-content: center; /* 水平方向の中央揃え */
-    align-items: center;     /* 垂直方向の中央揃え */
-    font-size: 8vw;          /* 文字サイズを少し調整 */
-    font-weight: bold;       /* 文字を太くして見やすく */
+    justify-content: center;
+    align-items: center;
+    font-size: 8vw;
+    font-weight: bold;
     color: #333;
-
-    /* 以下は元のコードと同じ */
-    width: 100%;
-    padding-bottom: 100%; /* 正方形を維持 */
-    position: relative;
-    border: 1px solid #ccc;
-    box-sizing: border-box;
+    background-color: #fff;
+    border-radius: 5px;
     cursor: pointer;
 }
 
 .cell:hover {
     background-color: #f0f0f0;
+}
+
+/* モーダル用のスタイル */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: white;
+    padding: 30px 40px;
+    border-radius: 10px;
+    text-align: center;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+#result-message {
+    font-size: 2em;
+    font-weight: bold;
+    margin: 0 0 20px 0;
 }
