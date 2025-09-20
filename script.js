@@ -28,7 +28,7 @@ const winPatterns = [
 ];
 
 // ===============================================================
-// ゲームの初期化と画面生成
+// ゲームの初期化・画面生成
 // ===============================================================
 
 function createBoard() {
@@ -62,9 +62,8 @@ function resetToMenu() {
     gameMode = '';
     playerMark = '';
     aiMark = '';
-    selectedLevel = 0; // レベル選択もリセット
+    selectedLevel = 0;
     document.querySelectorAll('.level-btn').forEach(btn => btn.style.backgroundColor = '#007bff');
-    
     resultModal.style.display = 'none';
     modeSelection.style.display = 'block';
     gameBoard.style.display = 'none';
@@ -119,20 +118,18 @@ playAgainBtn.addEventListener('click', resetToMenu);
 function handleCellClick(event) {
     if (!gameActive) return;
     const clickedCellIndex = parseInt(event.target.dataset.index);
-    if (boardState[clickedCellIndex] !== '' || (gameMode === 'one-player' && currentPlayer === aiMark)) {
-        return;
-    }
+    if (boardState[clickedCellIndex] !== '' || (gameMode === 'one-player' && currentPlayer === aiMark)) return;
+
     updateBoard(clickedCellIndex, currentPlayer);
     if (checkEndCondition()) return;
     switchTurn();
+
     if (gameMode === 'one-player' && currentPlayer === aiMark && gameActive) {
         statusElement.textContent = 'AIのターン...';
         boardElement.style.pointerEvents = 'none';
         setTimeout(() => {
             aiMove();
-            if(gameActive) {
-                boardElement.style.pointerEvents = 'auto';
-            }
+            if(gameActive) boardElement.style.pointerEvents = 'auto';
         }, 500);
     }
 }
@@ -148,12 +145,12 @@ function updateBoard(index, mark) {
 }
 
 // ===============================================================
-// AIの思考ロジック
+// AIの思考ロジック【安定版】
 // ===============================================================
 
 function aiMove() {
     if (!gameActive) return;
-    const move = calculateAiMove(boardState, aiMark, selectedLevel);
+    const move = calculateAiMove();
     if (move !== null) {
         updateBoard(move, aiMark);
         if (checkEndCondition()) return;
@@ -161,97 +158,75 @@ function aiMove() {
     }
 }
 
-function calculateAiMove(currentBoard, mark, level) {
-    const opponentMark = (mark === '〇') ? '×' : '〇';
-    let winningMove = findLineMove(currentBoard, mark, 4);
+function calculateAiMove() {
+    // 優先度1: AIが勝てる手があれば、それに決める (全レベル共通)
+    const winningMove = findCriticalMove(boardState, aiMark, 4);
     if (winningMove !== null) return winningMove;
-    let blockingMove = findLineMove(currentBoard, opponentMark, 4);
+
+    // 優先度2: プレイヤーが勝つ手を阻止する (全レベル共通)
+    const blockingMove = findCriticalMove(boardState, playerMark, 4);
     if (blockingMove !== null) return blockingMove;
 
-    switch(level) {
-        case 5:
-            return findRandomMove(currentBoard);
-        case 8:
-            let setupMove8 = findLineMove(currentBoard, mark, 3);
-            if (setupMove8 !== null) return setupMove8;
-            return findRandomMove(currentBoard);
-        case 12:
-            let setupMove12 = findLineMove(currentBoard, mark, 3);
-            if (setupMove12 !== null) return setupMove12;
-            let blockSetupMove = findLineMove(currentBoard, opponentMark, 3);
-            if (blockSetupMove !== null) return blockSetupMove;
-            return findRandomMove(currentBoard);
-        case 18:
-            let bestMove = findBestScoringMove(currentBoard, mark, opponentMark);
-            if (bestMove !== null) return bestMove;
-            return findRandomMove(currentBoard);
+    if (selectedLevel >= 12) {
+        // 中学生以上：AIがリーチをかける手を探す
+        const setupMove = findCriticalMove(boardState, aiMark, 3);
+        if (setupMove !== null) return setupMove;
     }
-    return findRandomMove(currentBoard);
+
+    if (selectedLevel >= 18) {
+         // 大人：プレイヤーのリーチを防ぐ
+        const blockSetupMove = findCriticalMove(boardState, playerMark, 3);
+        if (blockSetupMove !== null) return blockSetupMove;
+    }
+    
+    // 5歳・保育園、または良い手がない場合：ランダムな手
+    return findRandomMove();
 }
 
-function findRandomMove(board) {
-    const emptyCells = board.map((cell, i) => cell === '' ? i : null).filter(v => v !== null);
-    if (emptyCells.length === 0) return null;
-    return emptyCells[Math.floor(Math.random() * emptyCells.length)];
-}
+// ヘルパー関数：あと一手でN個揃う場所を探す (勝利・阻止・リーチに使用)
+function findCriticalMove(board, mark, count) {
+    const emptyCells = [];
+    board.forEach((cell, index) => {
+        if (cell === '') emptyCells.push(index);
+    });
 
-function findLineMove(board, mark, count) {
-    const emptyCells = board.map((cell, i) => cell === '' ? i : null).filter(v => v !== null);
-    for (const i of emptyCells) {
-        let tempBoard = [...board];
-        tempBoard[i] = mark;
-        if (checkWinOnBoard(tempBoard, mark, i)) return i; // checkWinをi周辺に限定して高速化も可能
-    }
-    // 上記はcount=4の場合のみ。リーチ(count=3)を探すロジックに修正
-    for (const i of emptyCells) {
-        let tempBoard = [...board];
-        tempBoard[i] = mark;
-        if (isThreat(tempBoard, mark, count)) return i;
+    for (const cellIndex of emptyCells) {
+        // そのマスに置いたと仮定
+        const tempBoard = [...board];
+        tempBoard[cellIndex] = mark;
+        // 勝利パターンをチェック
+        for (const pattern of winPatterns) {
+            const isWinningPattern = pattern.every(index => tempBoard[index] === mark);
+            if (isWinningPattern) {
+                 // 元の盤面で、そのラインがリーチだったか確認
+                let marksInPattern = 0;
+                let opponentPresent = false;
+                for(const index of pattern) {
+                    if(board[index] === mark) marksInPattern++;
+                    else if(board[index] !== '' && board[index] !== mark) opponentPresent = true;
+                }
+                if(marksInPattern === count - 1 && !opponentPresent) return cellIndex;
+            }
+        }
     }
     return null;
 }
 
-function isThreat(board, mark, count) {
-    for (const pattern of winPatterns) {
-        const marksInPattern = pattern.reduce((acc, index) => acc + (board[index] === mark ? 1 : 0), 0);
-        const emptyInPattern = pattern.reduce((acc, index) => acc + (board[index] === '' ? 1 : 0), 0);
-        if (marksInPattern === count && emptyInPattern === 4 - count) {
-            return true;
-        }
-    }
-    return false;
-}
 
-function findBestScoringMove(board, mark, opponentMark) {
-    const emptyCells = board.map((cell, i) => cell === '' ? i : null).filter(v => v !== null);
-    let bestScore = -1;
-    let bestMove = null;
-    for (const move of emptyCells) {
-        let score = 0;
-        let tempBoard = [...board];
-        tempBoard[move] = mark;
-        if (isThreat(tempBoard, mark, 3)) score += 5;
-        if ([5, 6, 9, 10].includes(move)) score += 0.5;
-        
-        let tempBoardOpponent = [...board];
-        tempBoardOpponent[move] = opponentMark;
-        if(isThreat(tempBoardOpponent, opponentMark, 3)) score += 2;
-
-
-        if (score > bestScore) {
-            bestScore = score;
-            bestMove = move;
-        }
-    }
-    return (bestScore > 0) ? bestMove : null;
-}
-
-function checkWinOnBoard(board, mark) {
-     return winPatterns.some(pattern => {
-        return pattern.every(index => board[index] === mark);
+// ヘルパー関数：ランダムな空きマスを探す
+function findRandomMove() {
+    const emptyCells = [];
+    boardState.forEach((cell, index) => {
+        if (cell === '') emptyCells.push(index);
     });
+    if (emptyCells.length === 0) return null;
+    // 中央(5,6,9,10)が空いていれば優先 (少し賢く)
+    const centerCells = [5, 6, 9, 10].filter(i => emptyCells.includes(i));
+    if (selectedLevel >= 8 && centerCells.length > 0) {
+        return centerCells[Math.floor(Math.random() * centerCells.length)];
+    }
+    return emptyCells[Math.floor(Math.random() * emptyCells.length)];
 }
-
 
 // ===============================================================
 // 勝敗判定と結果表示
@@ -262,7 +237,7 @@ function checkEndCondition() {
         showResult(`勝者: ${currentPlayer}！`);
         return true;
     }
-    if (boardState.every(cell => cell !== '')) {
+    if (boardState.every(cell => cell === '' ? false : true)) {
         showResult('引き分け');
         return true;
     }
