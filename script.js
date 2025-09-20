@@ -1,32 +1,34 @@
-// script.js
-
 // --- HTML要素の取得 ---
 const modeSelection = document.getElementById('mode-selection');
 const turnSelection = document.getElementById('turn-selection');
 const gameBoard = document.getElementById('game-board');
 const boardElement = document.querySelector('.board');
 const statusElement = document.getElementById('status');
+
 const onePlayerBtn = document.getElementById('one-player-btn');
 const twoPlayerBtn = document.getElementById('two-player-btn');
 const startFirstBtn = document.getElementById('start-first-btn');
 const startSecondBtn = document.getElementById('start-second-btn');
 const resetBtn = document.getElementById('reset-btn');
 
+const resultModal = document.getElementById('result-modal');
+const resultMessage = document.getElementById('result-message');
+const playAgainBtn = document.getElementById('play-again-btn');
+
 // --- グローバル変数の定義 ---
 let gameMode = '';
 let playerMark = '';
 let aiMark = '';
 let currentPlayer = '〇';
-let gameActive = false; // ゲームが始まるまではfalse
+let gameActive = false;
 let boardState = Array(16).fill('');
 
 // ===============================================================
 // ゲームの初期化と画面生成
 // ===============================================================
 
-// 盤面のセル（16個）を生成する
 function createBoard() {
-    boardElement.innerHTML = ''; // 既存のセルをクリア
+    boardElement.innerHTML = '';
     for (let i = 0; i < 16; i++) {
         const cell = document.createElement('div');
         cell.classList.add('cell');
@@ -36,7 +38,6 @@ function createBoard() {
     }
 }
 
-// ゲームを開始する関数
 function startGame() {
     gameActive = true;
     boardState = Array(16).fill('');
@@ -46,20 +47,30 @@ function startGame() {
     turnSelection.style.display = 'none';
     gameBoard.style.display = 'block';
     
-    createBoard(); // 盤面をクリアして再生成
+    createBoard();
 
     statusElement.textContent = `次のターン: ${currentPlayer}`;
 
-    // プレイヤーが後攻(×)を選んだ場合、AIが最初に手を打つ
     if (gameMode === 'one-player' && playerMark === '×') {
         statusElement.textContent = 'AIのターン...';
-        // AIの思考を少し遅延させて、自然に見せる
         setTimeout(aiMove, 500);
     }
 }
 
+function resetToMenu() {
+    gameActive = false;
+    gameMode = '';
+    playerMark = '';
+    aiMark = '';
+    
+    resultModal.style.display = 'none';
+    modeSelection.style.display = 'block';
+    gameBoard.style.display = 'none';
+    turnSelection.style.display = 'none';
+}
+
 // ===============================================================
-// イベントリスナー (ボタンがクリックされた時の処理)
+// イベントリスナー
 // ===============================================================
 
 onePlayerBtn.addEventListener('click', () => {
@@ -70,7 +81,7 @@ onePlayerBtn.addEventListener('click', () => {
 
 twoPlayerBtn.addEventListener('click', () => {
     gameMode = 'two-player';
-    playerMark = '〇'; // 2人用の場合はプレイヤー1が〇固定
+    playerMark = '〇';
     startGame();
 });
 
@@ -86,64 +97,48 @@ startSecondBtn.addEventListener('click', () => {
     startGame();
 });
 
-resetBtn.addEventListener('click', () => {
-    // 全ての状態をリセットして最初の画面に戻る
-    gameActive = false;
-    gameMode = '';
-    playerMark = '';
-    aiMark = '';
-    modeSelection.style.display = 'block';
-    gameBoard.style.display = 'none';
-});
+resetBtn.addEventListener('click', resetToMenu);
+playAgainBtn.addEventListener('click', resetToMenu);
 
 // ===============================================================
 // ゲーム中の処理
 // ===============================================================
 
-// セルがクリックされた時のメイン処理
 function handleCellClick(event) {
-    if (!gameActive) return; // ゲームが終了していたら何もしない
+    if (!gameActive) return;
 
     const clickedCellIndex = parseInt(event.target.dataset.index);
 
-    // すでにマークがあるセルや、AIのターンならクリックを無効化
     if (boardState[clickedCellIndex] !== '' || (gameMode === 'one-player' && currentPlayer === aiMark)) {
         return;
     }
 
-    // 盤面にマークを置く
     updateBoard(clickedCellIndex, currentPlayer);
-
-    // 勝敗・引き分けの判定
     if (checkEndCondition()) return;
-
-    // ★重要：ターンを交代する
     switchTurn();
 
-    // 1人用モードの場合、AIの手番を実行
     if (gameMode === 'one-player' && currentPlayer === aiMark && gameActive) {
         statusElement.textContent = 'AIのターン...';
-        boardElement.style.pointerEvents = 'none'; // AI思考中にクリックできないようにする
+        boardElement.style.pointerEvents = 'none';
         setTimeout(() => {
             aiMove();
-            boardElement.style.pointerEvents = 'auto'; // AIが終わったらクリック可能に戻す
+            if(gameActive) {
+                boardElement.style.pointerEvents = 'auto';
+            }
         }, 500);
     }
 }
 
-// ターンを交代する関数
 function switchTurn() {
     currentPlayer = (currentPlayer === '〇') ? '×' : '〇';
     statusElement.textContent = `次のターン: ${currentPlayer}`;
 }
 
-// 盤面を更新する関数
 function updateBoard(index, mark) {
     boardState[index] = mark;
     document.querySelector(`.cell[data-index='${index}']`).textContent = mark;
 }
 
-// AIが手を打つ関数 (現在はランダム)
 function aiMove() {
     if (!gameActive) return;
 
@@ -157,28 +152,30 @@ function aiMove() {
         updateBoard(move, aiMark);
 
         if (checkEndCondition()) return;
-        
-        // ★重要：AIが手を打った後、プレイヤーにターンを戻す
         switchTurn();
     }
 }
 
 // ===============================================================
-// 勝敗判定
+// 勝敗判定と結果表示
 // ===============================================================
 
 function checkEndCondition() {
     if (checkWin()) {
-        statusElement.textContent = `勝者: ${currentPlayer}！`;
-        gameActive = false;
+        showResult(`勝者: ${currentPlayer}！`);
         return true;
     }
     if (boardState.every(cell => cell !== '')) {
-        statusElement.textContent = '引き分け';
-        gameActive = false;
+        showResult('引き分け');
         return true;
     }
     return false;
+}
+
+function showResult(message) {
+    gameActive = false;
+    resultMessage.textContent = message;
+    resultModal.style.display = 'flex';
 }
 
 function checkWin() {
