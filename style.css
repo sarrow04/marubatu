@@ -41,7 +41,6 @@ button:hover {
 /* ゲーム盤のスタイル */
 .board {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
     width: 95vw;
     max-width: 480px;
     margin: 20px auto;
@@ -66,11 +65,22 @@ button:hover {
     line-height: 1; /* 縦方向のズレ防止 */
 }
 
+@media (min-width: 480px) {
+    .cell {
+        font-size: 38px; /* PCでの最大フォントサイズ */
+    }
+}
+
 .cell:hover {
     background-color: #f0f0f0;
 }
 
-/* レベル選択ボタン */
+/* 各画面のボタンのスタイル */
+#size-selection button {
+    padding: 15px 30px;
+    font-size: 1.2em;
+}
+
 #level-selection button {
     display: inline-block;
     width: 45%;
