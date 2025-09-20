@@ -1,4 +1,5 @@
 // --- HTML要素の取得 ---
+const sizeSelection = document.getElementById('size-selection');
 const modeSelection = document.getElementById('mode-selection');
 const levelSelection = document.getElementById('level-selection');
 const gameBoard = document.getElementById('game-board');
@@ -15,30 +16,51 @@ const playAgainBtn = document.getElementById('play-again-btn');
 const backToMenuBtn = document.getElementById('back-to-menu-btn');
 
 // --- グローバル変数の定義 ---
+let boardSize = 0;
+let winConditionCount = 0;
+let winPatterns = [];
 let gameMode = '';
 let playerMark = '';
 let aiMark = '';
 let selectedLevel = 0;
 let currentPlayer = '〇';
 let gameActive = false;
-let boardState = Array(16).fill('');
-const winPatterns = [
-    [0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11], [12, 13, 14, 15],
-    [0, 4, 8, 12], [1, 5, 9, 13], [2, 6, 10, 14], [3, 7, 11, 15],
-    [0, 5, 10, 15], [3, 6, 9, 12]
-];
+let boardState = [];
+
+// ===============================================================
+// 動的な勝利パターンの生成関数
+// ===============================================================
+function generateWinPatterns(size) {
+    const patterns = [];
+    for (let i = 0; i < size; i++) {
+        const horizontalPattern = [];
+        const verticalPattern = [];
+        for (let j = 0; j < size; j++) {
+            horizontalPattern.push(i * size + j);
+            verticalPattern.push(j * size + i);
+        }
+        patterns.push(horizontalPattern, verticalPattern);
+    }
+    const diag1 = [];
+    const diag2 = [];
+    for (let i = 0; i < size; i++) {
+        diag1.push(i * (size + 1));
+        diag2.push((i + 1) * (size - 1));
+    }
+    patterns.push(diag1, diag2);
+    return patterns;
+}
 
 // ===============================================================
 // ゲームの初期化・画面生成
 // ===============================================================
-
 function createBoard() {
-    // より確実にマス目を一旦すべて消去する方法に変更
     while (boardElement.firstChild) {
         boardElement.removeChild(boardElement.firstChild);
     }
-
-    for (let i = 0; i < 16; i++) {
+    boardElement.style.gridTemplateColumns = `repeat(${boardSize}, 1fr)`;
+    const totalCells = boardSize * boardSize;
+    for (let i = 0; i < totalCells; i++) {
         const cell = document.createElement('div');
         cell.classList.add('cell');
         cell.dataset.index = i;
@@ -48,10 +70,11 @@ function createBoard() {
 }
 
 function startGame() {
-    boardElement.style.pointerEvents = 'auto'; // クリック無効化を解除
+    boardElement.style.pointerEvents = 'auto';
     gameActive = true;
-    boardState = Array(16).fill('');
+    boardState = Array(boardSize * boardSize).fill('');
     currentPlayer = '〇';
+    sizeSelection.style.display = 'none';
     modeSelection.style.display = 'none';
     levelSelection.style.display = 'none';
     gameBoard.style.display = 'block';
@@ -69,9 +92,12 @@ function resetToMenu() {
     playerMark = '';
     aiMark = '';
     selectedLevel = 0;
+    boardSize = 0;
+    winPatterns = [];
     document.querySelectorAll('.level-btn').forEach(btn => btn.style.backgroundColor = '#007bff');
     resultModal.style.display = 'none';
-    modeSelection.style.display = 'block';
+    sizeSelection.style.display = 'block';
+    modeSelection.style.display = 'none';
     gameBoard.style.display = 'none';
     levelSelection.style.display = 'none';
 }
@@ -79,6 +105,15 @@ function resetToMenu() {
 // ===============================================================
 // イベントリスナー
 // ===============================================================
+document.querySelectorAll('.size-btn').forEach(button => {
+    button.addEventListener('click', () => {
+        boardSize = parseInt(button.dataset.size);
+        winConditionCount = boardSize;
+        winPatterns = generateWinPatterns(boardSize);
+        sizeSelection.style.display = 'none';
+        modeSelection.style.display = 'block';
+    });
+});
 
 onePlayerBtn.addEventListener('click', () => {
     gameMode = 'one-player';
@@ -124,7 +159,6 @@ backToMenuBtn.addEventListener('click', resetToMenu);
 // ===============================================================
 // ゲーム中のメイン処理
 // ===============================================================
-
 function handleCellClick(event) {
     if (!gameActive) return;
     const clickedCellIndex = parseInt(event.target.dataset.index);
@@ -157,7 +191,6 @@ function updateBoard(index, mark) {
 // ===============================================================
 // AIの思考ロジック
 // ===============================================================
-
 function aiMove() {
     if (!gameActive) return;
     const move = calculateAiMove();
@@ -169,19 +202,19 @@ function aiMove() {
 }
 
 function calculateAiMove() {
-    const winningMove = findCriticalMove(boardState, aiMark, 4);
+    const winningMove = findCriticalMove(boardState, aiMark, winConditionCount);
     if (winningMove !== null) return winningMove;
 
-    const blockingMove = findCriticalMove(boardState, playerMark, 4);
+    const blockingMove = findCriticalMove(boardState, playerMark, winConditionCount);
     if (blockingMove !== null) return blockingMove;
 
     if (selectedLevel >= 18) {
-        const blockSetupMove = findCriticalMove(boardState, playerMark, 3);
+        const blockSetupMove = findCriticalMove(boardState, playerMark, winConditionCount - 1);
         if (blockSetupMove !== null) return blockSetupMove;
     }
 
     if (selectedLevel >= 12) {
-        const setupMove = findCriticalMove(boardState, aiMark, 3);
+        const setupMove = findCriticalMove(boardState, aiMark, winConditionCount - 1);
         if (setupMove !== null) return setupMove;
     }
     
@@ -198,6 +231,8 @@ function findCriticalMove(board, mark, count) {
         const tempBoard = [...board];
         tempBoard[cellIndex] = mark;
         for (const pattern of winPatterns) {
+            if (!pattern.includes(cellIndex)) continue;
+            
             const isWinningPattern = pattern.every(index => tempBoard[index] === mark);
             if (isWinningPattern) {
                 let marksInPattern = 0;
@@ -220,10 +255,12 @@ function findRandomMove() {
     });
     if (emptyCells.length === 0) return null;
     
-    if (selectedLevel >= 8) {
-        const centerCells = [5, 6, 9, 10].filter(i => emptyCells.includes(i));
-        if (centerCells.length > 0) {
-            return centerCells[Math.floor(Math.random() * centerCells.length)];
+    if (selectedLevel >= 8 && boardSize >= 4) {
+        const centerStartIndex = boardSize + 1;
+        const centerCells = [centerStartIndex, centerStartIndex + 1, centerStartIndex + boardSize, centerStartIndex + boardSize + 1];
+        const availableCenter = centerCells.filter(i => emptyCells.includes(i) && i < boardSize * boardSize);
+        if (availableCenter.length > 0) {
+            return availableCenter[Math.floor(Math.random() * availableCenter.length)];
         }
     }
     return emptyCells[Math.floor(Math.random() * emptyCells.length)];
@@ -232,7 +269,6 @@ function findRandomMove() {
 // ===============================================================
 // 勝敗判定と結果表示
 // ===============================================================
-
 function checkEndCondition() {
     if (checkWin()) {
         showResult(`勝者: ${currentPlayer}！`);
@@ -253,7 +289,6 @@ function showResult(message) {
 
 function checkWin() {
     return winPatterns.some(pattern => {
-        const [a, b, c, d] = pattern;
-        return boardState[a] && boardState[a] === boardState[b] && boardState[a] === boardState[c] && boardState[a] === boardState[d];
+        return pattern.every(index => boardState[index] && boardState[index] === currentPlayer);
     });
 }
