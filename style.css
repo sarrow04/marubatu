@@ -53,6 +53,7 @@ button:hover {
     box-sizing: border-box;
 }
 
+/* style.css */
 .cell {
     display: flex;
     justify-content: center;
@@ -63,6 +64,7 @@ button:hover {
     background-color: #fff;
     border-radius: 5px;
     cursor: pointer;
+    line-height: 1; /* ← この1行を追加 */
 }
 
 .cell:hover {
@@ -96,3 +98,4 @@ button:hover {
     font-weight: bold;
     margin: 0 0 20px 0;
 }
+
