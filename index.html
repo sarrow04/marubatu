@@ -14,27 +14,29 @@
         <button id="one-player-btn">一人で遊ぶ</button>
         <button id="two-player-btn">二人で遊ぶ</button>
     </div>
-    
-    <div id="turn-selection" style="display: none;">
-        <h3>どちらで始めますか？</h3>
-        <button id="start-first-btn">先行 (〇) で始める</button>
-        <button id="start-second-btn">後攻 (×) で始める</button>
+
+    <div id="level-selection" style="display: none;">
+        <h3>AIのレベルを選んでください</h3>
+        <div>
+            <button class="level-btn" data-level="5">5歳 (最弱)</button>
+            <button class="level-btn" data-level="8">保育園</button>
+            <button class="level-btn" data-level="12">中学生</button>
+            <button class="level-btn" data-level="18">大人 (強い)</button>
+        </div>
+        <div style="margin-top: 20px;">
+            <h3>どちらで始めますか？</h3>
+            <button id="start-first-btn">先行 (〇)</button>
+            <button id="start-second-btn">後攻 (×)</button>
+        </div>
     </div>
 
     <div id="game-board" style="display: none;">
-        <div id="status"></div>
-        <div class="board">
-            </div>
-        <button id="reset-btn">メニューに戻る</button>
-    </div>
-
-    <div id="result-modal" class="modal-overlay" style="display: none;">
-        <div class="modal-content">
-            <p id="result-message"></p>
-            <button id="play-again-btn">もう一度遊ぶ</button>
         </div>
-    </div>
+    
+    <div id="result-modal" class="modal-overlay" style="display: none;">
+        </div>
 
     <script src="script.js"></script>
 </body>
 </html>
+
