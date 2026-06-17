@@ -4,229 +4,220 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>中央線 出店シミュレーター</title>
-  
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.3/babel.min.js"></script>
-
   <style>
     body { margin: 0; background: #070e1c; color: #dce8f5; font-family: sans-serif; padding-bottom: 50px; }
     .container { max-width: 600px; margin: 0 auto; padding: 15px; }
     .card { background: #0c1528; border-radius: 10px; padding: 15px; margin-bottom: 15px; border: 1px solid #1a2b42; }
     .title { color: #fb923c; text-align: center; border-bottom: 1px solid #1a2b42; padding-bottom: 15px; }
-    .btn { padding: 10px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px; }
+    .btn { padding: 10px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px; box-sizing: border-box; font-size: 14px; }
     .btn-primary { background: #fb923c; color: #000; }
     .btn-outline { background: transparent; border: 1px solid #fb923c; color: #fb923c; }
     .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .input-group { display: flex; flex-direction: column; margin-bottom: 10px; }
     .input-group label { font-size: 11px; color: #8ba3c7; margin-bottom: 3px; }
-    .input-group input, .input-group select { background: #070e1c; color: #fb923c; border: 1px solid #1a2b42; padding: 8px; border-radius: 5px; font-size: 16px; font-weight: bold; }
+    .input-group input, .input-group select { background: #070e1c; color: #fb923c; border: 1px solid #1a2b42; padding: 8px; border-radius: 5px; font-size: 16px; font-weight: bold; width: 100%; box-sizing: border-box; }
     table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 10px; }
     th, td { padding: 8px 5px; text-align: right; border-bottom: 1px solid #1a2b42; }
     th { color: #8ba3c7; font-weight: normal; }
+    .hidden { display: none !important; }
+    
+    /* ラジオボタンの装飾 */
+    .radio-label { display: block; padding: 10px; background: #070e1c; border: 1px solid #1a2b42; margin-bottom: 5px; border-radius: 5px; cursor: pointer; font-size: 14px; }
+    .radio-label.active { background: #fb923c22; border-color: #fb923c; color: #fb923c; font-weight: bold; }
   </style>
-
-  <script>
-    window.onerror = function(msg, url, line) {
-      document.body.innerHTML = '<div style="background:#500;color:#fbb;padding:20px;margin:20px;border-radius:10px;">' +
-        '<h3>⚠️ エラーが発生しました</h3><p>' + msg + '</p><p>Line: ' + line + '</p></div>';
-    };
-  </script>
 </head>
 <body>
-  <div id="root"></div>
+  <div class="container">
+    <h2 class="title">中央線 出店シミュレーター</h2>
+    
+    <div class="grid" style="margin-bottom: 20px;">
+      <button id="btn-tab-setup" class="btn btn-primary" onclick="switchTab('setup')">⚙️ 設定</button>
+      <button id="btn-tab-result" class="btn btn-outline" onclick="switchTab('result')">📊 結果</button>
+    </div>
 
-  <script type="text/babel">
-    const { useState } = React;
+    <div id="view-setup">
+      <div class="card">
+        <div style="font-size:12px; color:#8ba3c7; margin-bottom:10px;">1. エリアを選択</div>
+        <select id="station" onchange="updateLocs()"></select>
+        
+        <div style="font-size:12px; color:#8ba3c7; margin-bottom:10px; margin-top:15px;">2. 立地を選択</div>
+        <div id="loc-container"></div>
+      </div>
 
+      <div class="card">
+        <div style="font-size:12px; color:#8ba3c7; margin-bottom:10px;">3. 業種テンプレート</div>
+        <div class="grid" id="preset-container"></div>
+      </div>
+
+      <div class="card">
+        <div style="font-size:12px; color:#8ba3c7; margin-bottom:10px;">4. 詳細数値を調整</div>
+        <div class="grid">
+          <div class="input-group"><label>客単価 (円)</label><input type="number" id="v-price" value="1100"></div>
+          <div class="input-group"><label>原価率 (%)</label><input type="number" id="v-cr" value="45"></div>
+          <div class="input-group"><label>利用率 (%)</label><input type="number" id="v-ur" value="40"></div>
+          <div class="input-group"><label>年間来店回数</label><input type="number" id="v-av" value="52"></div>
+          <div class="input-group"><label>スタッフ数</label><input type="number" id="v-staff" value="3"></div>
+          <div class="input-group"><label>時給 (円)</label><input type="number" id="v-wage" value="1100"></div>
+          <div class="input-group"><label>労働時間/日</label><input type="number" id="v-hrs" value="8"></div>
+          <div class="input-group"><label>広告・光熱費/月 (円)</label><input type="number" id="v-fixed" value="60000"></div>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" style="padding:15px; font-size:16px;" onclick="runSim()">▶ シミュレーション実行</button>
+    </div>
+
+    <div id="view-result" class="hidden">
+      <div id="result-content"></div>
+      <button class="btn btn-outline" style="padding:15px; font-size:14px; margin-top:20px;" onclick="switchTab('setup')">🔄 設定をやり直す</button>
+    </div>
+  </div>
+
+  <script>
+    // データ定義
     const LOCS = {
-      阿佐ヶ谷: [
-        {name:"パールセンター", rent:22, ff:1.2, rain:0.95, wk:1.12},
-        {name:"スターロード", rent:14, ff:0.75, rain:0.55, wk:1.05},
-        {name:"住宅街", rent:9, ff:0.45, rain:0.7, wk:0.95}
-      ],
-      高円寺: [
-        {name:"高円寺商店街", rent:18, ff:1.1, rain:0.75, wk:1.25},
-        {name:"住宅街", rent:10, ff:0.55, rain:0.65, wk:0.9}
-      ],
-      荻窪: [
-        {name:"駅前商圏", rent:24, ff:1.3, rain:0.8, wk:1.18},
-        {name:"住宅街", rent:11, ff:0.5, rain:0.68, wk:0.92}
-      ],
-      中野: [
-        {name:"ブロードウェイ", rent:26, ff:1.5, rain:0.85, wk:1.3},
-        {name:"住宅街", rent:13, ff:0.6, rain:0.7, wk:1.0}
-      ],
-      吉祥寺: [
-        {name:"サンロード", rent:28, ff:1.35, rain:0.88, wk:1.28},
-        {name:"井の頭公園", rent:30, ff:1.4, rain:0.65, wk:1.35},
-        {name:"住宅街", rent:14, ff:0.55, rain:0.72, wk:0.88}
-      ]
+      "阿佐ヶ谷": [{name:"パールセンター", rent:22, ff:1.2, wk:1.12}, {name:"スターロード", rent:14, ff:0.75, wk:1.05}, {name:"住宅街", rent:9, ff:0.45, wk:0.95}],
+      "高円寺": [{name:"高円寺商店街", rent:18, ff:1.1, wk:1.25}, {name:"住宅街", rent:10, ff:0.55, wk:0.9}],
+      "荻窪": [{name:"駅前商圏", rent:24, ff:1.3, wk:1.18}, {name:"住宅街", rent:11, ff:0.5, wk:0.92}],
+      "中野": [{name:"ブロードウェイ", rent:26, ff:1.5, wk:1.3}, {name:"住宅街", rent:13, ff:0.6, wk:1.0}],
+      "吉祥寺": [{name:"サンロード", rent:28, ff:1.35, wk:1.28}, {name:"井の頭公園", rent:30, ff:1.4, wk:1.35}, {name:"住宅街", rent:14, ff:0.55, wk:0.88}]
     };
 
     const PRESETS = [
-      {id:"cafe", name:"☕ カフェ", price:1100, ur:40, av:52, cr:45},
-      {id:"ramen", name:"🍜 ラーメン", price:950, ur:50, av:36, cr:48},
-      {id:"pizza", name:"🍕 ピザ", price:3500, ur:80, av:24, cr:55},
-      {id:"izakaya", name:"🍺 居酒屋", price:3200, ur:35, av:18, cr:52}
+      {name:"☕ カフェ", p:1100, ur:40, av:52, cr:45},
+      {name:"🍜 ラーメン", p:950, ur:50, av:36, cr:48},
+      {name:"🍕 ピザ", p:3500, ur:80, av:24, cr:55},
+      {name:"🍺 居酒屋", p:3200, ur:35, av:18, cr:52}
     ];
 
-    const MW = {
-      1:{tm:0.82}, 2:{tm:0.85}, 3:{tm:0.95}, 4:{tm:1.05}, 5:{tm:1.08}, 6:{tm:0.92},
-      7:{tm:0.88}, 8:{tm:0.85}, 9:{tm:0.90}, 10:{tm:1.05}, 11:{tm:1.00}, 12:{tm:0.88}
-    };
+    // 月ごとの集客補正係数
+    const MW = { 4:1.05, 5:1.08, 6:0.92, 7:0.88, 8:0.85, 9:0.90 };
+    let selLocIdx = 0;
 
     const yen = (n) => Math.round(n).toLocaleString() + "円";
+    const el = (id) => document.getElementById(id);
+    const val = (id) => Number(el(id).value);
 
-    function App() {
-      const [tab, setTab] = useState("setup");
-      const [station, setStation] = useState("阿佐ヶ谷");
-      const [locIdx, setLocIdx] = useState(0);
+    // 画面の初期化
+    window.onload = () => {
+      const stSelect = el("station");
+      for(let s in LOCS) {
+        stSelect.innerHTML += `<option value="${s}">${s}</option>`;
+      }
       
-      const [price, setPrice] = useState(1100);
-      const [cr, setCr] = useState(45);
-      const [ur, setUr] = useState(40);
-      const [av, setAv] = useState(52);
-      
-      const [staff, setStaff] = useState(3);
-      const [wage, setWage] = useState(1100);
-      const [hrs, setHrs] = useState(8);
-      const [utility, setUtility] = useState(30000);
-      const [ad, setAd] = useState(30000);
+      const preCont = el("preset-container");
+      PRESETS.forEach((p, i) => {
+        preCont.innerHTML += `<button class="btn btn-outline" style="margin-top:0;" onclick="applyPreset(${i})">${p.name}</button>`;
+      });
 
-      const [results, setResults] = useState(null);
+      updateLocs();
+    };
 
-      const applyPreset = (p) => {
-        setPrice(p.price); setCr(p.cr); setUr(p.ur); setAv(p.av);
-      };
-
-      const runSim = () => {
-        const loc = LOCS[station][locIdx];
-        const monthsData = [];
-        
-        for (let m = 4; m <= 9; m++) {
-          const days = new Date(2025, m, 0).getDate();
-          let rev = 0;
-          
-          for (let d = 1; d <= days; d++) {
-            const isWk = new Date(2025, m - 1, d).getDay() % 6 === 0;
-            const base = (10000 * (ur/100) * av * price * 0.03) / 365;
-            rev += base * loc.ff * MW[m].tm * (isWk ? loc.wk : 1.0);
-          }
-          
-          const fRent = loc.rent * 10000;
-          const fLabor = staff * wage * hrs * days;
-          const vCogs = rev * (cr / 100);
-          const profit = rev - fRent - fLabor - utility - vCogs - ad;
-          
-          monthsData.push({ mName: `${m}月`, rev, profit, fRent, fLabor, vCogs });
-        }
-        
-        setResults(monthsData);
-        setTab("result");
-      };
-
-      return (
-        <div className="container">
-          <h2 className="title">中央線 出店シミュレーター</h2>
-          
-          <div className="grid" style={{marginBottom: "20px"}}>
-            <button className={tab === "setup" ? "btn btn-primary" : "btn btn-outline"} onClick={() => setTab("setup")}>⚙️ 設定</button>
-            <button className={tab === "result" ? "btn btn-primary" : "btn btn-outline"} onClick={() => setTab("result")}>📊 結果</button>
-          </div>
-
-          {tab === "setup" && (
-            <div>
-              <div className="card">
-                <div style={{fontSize:"12px", color:"#8ba3c7", marginBottom:"10px"}}>1. エリアを選択</div>
-                <select value={station} onChange={(e) => { setStation(e.target.value); setLocIdx(0); }} style={{width:"100%", padding:"10px", marginBottom:"10px", background:"#070e1c", color:"#fff"}}>
-                  {Object.keys(LOCS).map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-                
-                <div style={{fontSize:"12px", color:"#8ba3c7", marginBottom:"10px"}}>2. 立地を選択</div>
-                {LOCS[station].map((l, i) => (
-                  <label key={i} style={{display:"block", padding:"10px", background: locIdx === i ? "#fb923c22" : "#070e1c", border: locIdx === i ? "1px solid #fb923c" : "1px solid #1a2b42", marginBottom:"5px", borderRadius:"5px", cursor:"pointer"}}>
-                    <input type="radio" name="loc" checked={locIdx === i} onChange={() => setLocIdx(i)} style={{marginRight:"10px"}} />
-                    {l.name} (家賃: {l.rent}万円)
-                  </label>
-                ))}
-              </div>
-
-              <div className="card">
-                <div style={{fontSize:"12px", color:"#8ba3c7", marginBottom:"10px"}}>3. 業種テンプレート</div>
-                <div className="grid">
-                  {PRESETS.map(p => (
-                    <button key={p.id} className="btn btn-outline" style={{marginTop:"0"}} onClick={() => applyPreset(p)}>{p.name}</button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="card">
-                <div style={{fontSize:"12px", color:"#8ba3c7", marginBottom:"10px"}}>4. 詳細数値を調整</div>
-                <div className="grid">
-                  <div className="input-group"><label>客単価 (円)</label><input type="number" value={price} onChange={e=>setPrice(+e.target.value)} /></div>
-                  <div className="input-group"><label>原価率 (%)</label><input type="number" value={cr} onChange={e=>setCr(+e.target.value)} /></div>
-                  <div className="input-group"><label>利用率 (%)</label><input type="number" value={ur} onChange={e=>setUr(+e.target.value)} /></div>
-                  <div className="input-group"><label>年間来店回数</label><input type="number" value={av} onChange={e=>setAv(+e.target.value)} /></div>
-                  <div className="input-group"><label>スタッフ数</label><input type="number" value={staff} onChange={e=>setStaff(+e.target.value)} /></div>
-                  <div className="input-group"><label>時給 (円)</label><input type="number" value={wage} onChange={e=>setWage(+e.target.value)} /></div>
-                  <div className="input-group"><label>労働時間/日</label><input type="number" value={hrs} onChange={e=>setHrs(+e.target.value)} /></div>
-                  <div className="input-group"><label>広告費/月 (円)</label><input type="number" value={ad} onChange={e=>setAd(+e.target.value)} /></div>
-                </div>
-              </div>
-
-              <button className="btn btn-primary" style={{padding:"15px", fontSize:"16px"}} onClick={runSim}>▶ シミュレーション実行</button>
-            </div>
-          )}
-
-          {tab === "result" && results && (
-            <div>
-              <div className="grid" style={{marginBottom:"15px"}}>
-                <div className="card" style={{margin:0, borderTop:"3px solid #fb923c"}}>
-                  <div style={{fontSize:"11px", color:"#8ba3c7"}}>期間売上合計</div>
-                  <div style={{fontSize:"18px", fontWeight:"bold", color:"#fb923c"}}>{yen(results.reduce((s, r) => s + r.rev, 0))}</div>
-                </div>
-                <div className="card" style={{margin:0, borderTop:"3px solid #34d399"}}>
-                  <div style={{fontSize:"11px", color:"#8ba3c7"}}>期間利益合計</div>
-                  <div style={{fontSize:"18px", fontWeight:"bold", color: results.reduce((s, r) => s + r.profit, 0) >= 0 ? "#34d399" : "#f43f5e"}}>
-                    {yen(results.reduce((s, r) => s + r.profit, 0))}
-                  </div>
-                </div>
-              </div>
-
-              <div className="card" style={{overflowX:"auto"}}>
-                <div style={{fontSize:"12px", color:"#8ba3c7", marginBottom:"10px"}}>月次データ</div>
-                <table>
-                  <thead>
-                    <tr><th>月</th><th>売上</th><th>原価</th><th>人件費</th><th>利益</th></tr>
-                  </thead>
-                  <tbody>
-                    {results.map((r, i) => (
-                      <tr key={i}>
-                        <td style={{textAlign:"center", color:"#fff"}}>{r.mName}</td>
-                        <td style={{color:"#fb923c"}}>{yen(r.rev)}</td>
-                        <td>{yen(r.vCogs)}</td>
-                        <td>{yen(r.fLabor)}</td>
-                        <td style={{fontWeight:"bold", color: r.profit >= 0 ? "#34d399" : "#f43f5e"}}>{yen(r.profit)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              <button className="btn btn-outline" onClick={() => setTab("setup")}>🔄 設定をやり直す</button>
-            </div>
-          )}
-          
-          {tab === "result" && !results && (
-            <div style={{textAlign:"center", padding:"50px 0", color:"#8ba3c7"}}>設定画面から「実行」を押してください</div>
-          )}
-        </div>
-      );
+    // 立地リストの更新
+    function updateLocs() {
+      const st = el("station").value;
+      const cont = el("loc-container");
+      cont.innerHTML = "";
+      selLocIdx = 0;
+      LOCS[st].forEach((l, i) => {
+        cont.innerHTML += `
+          <label class="radio-label ${i===0?'active':''}" id="lbl-loc-${i}" onclick="selectLoc(${i})">
+            <input type="radio" name="loc" ${i===0?'checked':''} style="margin-right:10px;">
+            ${l.name} (家賃: ${l.rent}万円)
+          </label>`;
+      });
     }
 
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<App />);
+    // 立地の選択
+    function selectLoc(idx) {
+      selLocIdx = idx;
+      const st = el("station").value;
+      LOCS[st].forEach((_, i) => {
+        el(`lbl-loc-${i}`).className = "radio-label" + (i === idx ? " active" : "");
+        el(`lbl-loc-${i}`).querySelector("input").checked = (i === idx);
+      });
+    }
+
+    // プリセットの反映
+    function applyPreset(idx) {
+      const p = PRESETS[idx];
+      el("v-price").value = p.p;
+      el("v-cr").value = p.cr;
+      el("v-ur").value = p.ur;
+      el("v-av").value = p.av;
+    }
+
+    // タブの切り替え
+    function switchTab(t) {
+      if(t === 'setup') {
+        el("view-setup").classList.remove("hidden");
+        el("view-result").classList.add("hidden");
+        el("btn-tab-setup").className = "btn btn-primary";
+        el("btn-tab-result").className = "btn btn-outline";
+      } else {
+        el("view-setup").classList.add("hidden");
+        el("view-result").classList.remove("hidden");
+        el("btn-tab-setup").className = "btn btn-outline";
+        el("btn-tab-result").className = "btn btn-primary";
+      }
+      window.scrollTo(0, 0); // 画面の一番上に戻る
+    }
+
+    // シミュレーション計算
+    function runSim() {
+      const st = el("station").value;
+      const loc = LOCS[st][selLocIdx];
+      
+      const price = val("v-price"), cr = val("v-cr"), ur = val("v-ur"), av = val("v-av");
+      const staff = val("v-staff"), wage = val("v-wage"), hrs = val("v-hrs"), fixed = val("v-fixed");
+
+      let totalRev = 0, totalProfit = 0;
+      let tableHTML = "";
+
+      for(let m = 4; m <= 9; m++) {
+        const days = new Date(2025, m, 0).getDate();
+        let mRev = 0;
+        
+        for(let d = 1; d <= days; d++) {
+          const isWk = new Date(2025, m-1, d).getDay() % 6 === 0;
+          const base = (10000 * (ur/100) * av * price * 0.03) / 365;
+          mRev += base * loc.ff * MW[m] * (isWk ? loc.wk : 1.0);
+        }
+        
+        const fRent = loc.rent * 10000;
+        const fLabor = staff * wage * hrs * days;
+        const vCogs = mRev * (cr/100);
+        const mProfit = mRev - fRent - fLabor - fixed - vCogs;
+
+        totalRev += mRev;
+        totalProfit += mProfit;
+
+        const pColor = mProfit >= 0 ? "#34d399" : "#f43f5e";
+        tableHTML += `<tr><td style="text-align:center;color:#fff;">${m}月</td><td style="color:#fb923c;">${yen(mRev)}</td><td>${yen(vCogs)}</td><td>${yen(fLabor)}</td><td style="font-weight:bold;color:${pColor};">${yen(mProfit)}</td></tr>`;
+      }
+
+      const totalColor = totalProfit >= 0 ? "#34d399" : "#f43f5e";
+
+      el("result-content").innerHTML = `
+        <div class="grid" style="margin-bottom:15px;">
+          <div class="card" style="margin:0; border-top:3px solid #fb923c;">
+            <div style="font-size:11px; color:#8ba3c7;">期間売上合計</div>
+            <div style="font-size:18px; font-weight:bold; color:#fb923c;">${yen(totalRev)}</div>
+          </div>
+          <div class="card" style="margin:0; border-top:3px solid ${totalColor};">
+            <div style="font-size:11px; color:#8ba3c7;">期間利益合計</div>
+            <div style="font-size:18px; font-weight:bold; color:${totalColor};">${yen(totalProfit)}</div>
+          </div>
+        </div>
+        <div class="card" style="overflow-x:auto;">
+          <div style="font-size:12px; color:#8ba3c7; margin-bottom:10px;">月次データ (家賃・固定費込)</div>
+          <table>
+            <thead><tr><th>月</th><th>売上</th><th>原価</th><th>人件費</th><th>利益</th></tr></thead>
+            <tbody>${tableHTML}</tbody>
+          </table>
+        </div>
+      `;
+      switchTab('result');
+    }
   </script>
 </body>
 </html>
