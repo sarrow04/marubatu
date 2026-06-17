@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>中央線 出店シミュレーター Ver.3</title>
+  <title>中央線 出店シミュレーター Ver.3.1</title>
   <style>
     body { margin: 0; background: #070e1c; color: #dce8f5; font-family: sans-serif; padding-bottom: 50px; }
     .container { max-width: 600px; margin: 0 auto; padding: 15px; }
@@ -30,7 +30,7 @@
 </head>
 <body>
   <div class="container">
-    <h2 class="title">中央線 出店シミュレーター <span style="font-size:14px; color:#fb923c;">Ver.3</span></h2>
+    <h2 class="title">中央線 出店シミュレーター <span style="font-size:14px; color:#fb923c;">Ver.3.1 (ガチ相場版)</span></h2>
     
     <div class="grid" style="margin-bottom: 20px;">
       <button id="btn-tab-setup" class="btn btn-primary" onclick="switchTab('setup')">⚙️ 設定</button>
@@ -90,7 +90,8 @@
         <div class="grid">
           <div class="input-group"><label>客単価 (円)</label><input type="number" id="v-price" value="1100"></div>
           <div class="input-group"><label>原価率 (%)</label><input type="number" id="v-cr" value="45"></div>
-          <div class="input-group"><label>月間営業日数 (日)</label><input type="number" id="v-opendays" value="25"></div> <div class="input-group"><label>年間来店回数/人</label><input type="number" id="v-av" value="52"></div>
+          <div class="input-group"><label>月間営業日数 (日)</label><input type="number" id="v-opendays" value="25"></div>
+          <div class="input-group"><label>年間来店回数/人</label><input type="number" id="v-av" value="52"></div>
           <div class="input-group"><label>利用率 (%)</label><input type="number" id="v-ur" value="40"></div>
           <div class="input-group"><label>スタッフ数/日</label><input type="number" id="v-staff" value="3"></div>
           <div class="input-group"><label>時給 (円)</label><input type="number" id="v-wage" value="1100"></div>
@@ -113,15 +114,32 @@
   </div>
 
   <script>
+    // 🆕 家賃データを「リアルな1階路面店（12〜15坪サイズ）」のガチ相場に一括修正！
     const LOCS = {
-      "阿佐ヶ谷": [{name:"パールセンター", rent:22, ff:1.2, wk:1.12, rain:0.95, note:"アーケードで雨に強い"}, {name:"スターロード", rent:14, ff:0.75, wk:1.05, rain:0.55, note:"居酒屋向き。雨天激減"}, {name:"住宅街", rent:9, ff:0.45, wk:0.95, rain:0.7, note:"固定客。低家賃"}],
-      "高円寺": [{name:"高円寺商店街", rent:18, ff:1.1, wk:1.25, rain:0.75, note:"週末遠方客多い"}, {name:"住宅街", rent:10, ff:0.55, wk:0.9, rain:0.65, note:"生活密着。常連率高め"}],
-      "荻窪": [{name:"駅前商圏", rent:24, ff:1.3, wk:1.18, rain:0.8, note:"ターミナル・乗換客"}, {name:"住宅街", rent:11, ff:0.5, wk:0.92, rain:0.68, note:"落ち着いたランチ需要"}],
-      "中野": [{name:"ブロードウェイ", rent:26, ff:1.5, wk:1.3, rain:0.85, note:"オタク層の聖地。集客大"}, {name:"住宅街", rent:13, ff:0.6, wk:1.0, rain:0.7, note:"オフィスワーカーも"}],
-      "吉祥寺": [{name:"サンロード", rent:28, ff:1.35, wk:1.28, rain:0.88, note:"アーケード。回遊客"}, {name:"井の頭公園", rent:30, ff:1.4, wk:1.35, rain:0.65, note:"おしゃれ激戦区"}, {name:"住宅街", rent:14, ff:0.55, wk:0.88, rain:0.72, note:"高所得ファミリー層"}]
+      "阿佐ヶ谷": [
+        {name:"パールセンター商店街", rent:50, ff:1.2, wk:1.12, rain:0.95, note:"一等地路面。アーケードで雨に強い"}, 
+        {name:"スターロード周辺", rent:32, ff:0.75, wk:1.05, rain:0.55, note:"夜型路地。バル・バー向きだが雨に大打撃"}, 
+        {name:"住宅街（駅から10分）", rent:18, ff:0.45, wk:0.95, rain:0.7, note:"固定客の生活圏。低家賃で勝負"}
+      ],
+      "高円寺": [
+        {name:"高円寺商店街コア", rent:45, ff:1.1, wk:1.25, rain:0.75, note:"サブカルの聖地。週末は広域から集客"}, 
+        {name:"住宅街（庚申通り）", rent:22, ff:0.55, wk:0.9, rain:0.65, note:"地元住民密着。常連率が高い"}
+      ],
+      "荻窪": [
+        {name:"駅前ロータリー商圏", rent:65, ff:1.3, wk:1.18, rain:0.8, note:"乗り換え客多数。抜群の集客力"}, 
+        {name:"住宅街（西荻側）", rent:24, ff:0.5, wk:0.92, rain:0.68, note:"落ち着いた住宅街。ランチ中心"}
+      ],
+      "中野": [
+        {name:"サンモール・BW周辺", rent:85, ff:1.5, wk:1.3, rain:0.85, note:"日本屈指の超高密度商圏。集客力最大級"}, 
+        {name:"住宅街（北口側）", rent:28, ff:0.6, wk:1.0, rain:0.7, note:"オフィスワーカーの昼需要もアリ"}
+      ],
+      "吉祥寺": [
+        {name:"サンロード商店街", rent:100, ff:1.35, wk:1.28, rain:0.88, note:"超一等地。全天候アーケードで圧倒的集客"}, 
+        {name:"井の頭公園エリア", rent:75, ff:1.4, wk:1.35, rain:0.65, note:"ブランド力抜群のお洒落激戦区。週末型"}, 
+        {name:"住宅街（東側五日市街道）", rent:35, ff:0.55, wk:0.88, rain:0.72, note:"高所得なファミリー層がターゲット"}
+      ]
     };
 
-    // 🆕 その他を含めた比率データ
     const PRESETS = [
       {name:"☕ カフェ", p:1100, ur:40, av:52, cr:45, ei:70, to:30, re:0},
       {name:"🍜 ラーメン", p:950, ur:50, av:36, cr:48, ei:95, to:5, re:0},
@@ -154,7 +172,6 @@
       checkTotal();
     };
 
-    // 🆕 100%チェックシステム
     function checkTotal() {
       const total = val("v-ei") + val("v-to") + val("v-re");
       const info = el("pct-total-info");
@@ -229,10 +246,9 @@
           const base = (10000 * (ur/100) * av * price * 0.03) / 365;
           const baseEI = base * (eiPct / 100), baseTO = base * (toPct / 100), baseRE = base * (rePct / 100);
           
-          // 🆕 天候影響を内訳ごとに個別計算
           const curRainEI = isRain ? loc.rain : 1.0; 
-          const curRainTO = isRain ? (loc.rain + 1) / 2 : 1.0; // 持帰は雨の影響がマイルド
-          const curRainRE = 1.0; // 物販は雨影響なし
+          const curRainTO = isRain ? (loc.rain + 1) / 2 : 1.0; 
+          const curRainRE = 1.0; 
           
           const common = loc.ff * mData.tm * (isWk ? loc.wk : 1.0);
           mRevEI += baseEI * common * curRainEI;
@@ -240,7 +256,6 @@
           mRevRE += baseRE * common * curRainRE;
         }
         
-        // 🆕 実営業日数の割合を売上に反映
         const openRatio = Math.min(1, openDays / days);
         const finalEI = mRevEI * openRatio;
         const finalTO = mRevTO * openRatio;
@@ -248,7 +263,7 @@
         const mRev = finalEI + finalTO + finalRE;
 
         const fRent = loc.rent * 10000;
-        const fLabor = staff * wage * hrs * openDays; // 🆕 人件費も実営業日数ベースに修正
+        const fLabor = staff * wage * hrs * openDays; 
         const vCogs = mRev * (cr/100);
         const mProfit = mRev - fRent - fLabor - fixed - vCogs;
 
@@ -274,9 +289,9 @@
             <div style="font-size:11px; color:#8ba3c7;">期間売上合計 (${monthsToRun.length}ヶ月 / 月${openDays}日営業)</div>
             <div style="font-size:18px; font-weight:bold; color:#fb923c;">${yen(totalRev)}</div>
             <div style="font-size:10px; color:#8ba3c7; margin-top:8px; border-top:1px dashed #1a2b42; padding-top:6px; line-height:1.4;">
-              🍽️店外食: ${yen(totalEI)} (${eiPct}%)<br>
-              🥡持帰り: ${yen(totalTO)} (${toPct}%)<br>
-              🛍️物品販売: ${yen(totalRE)} (${rePct}%)
+              🍽️イートイン: ${yen(totalEI)} (${eiPct}%)<br>
+              🥡テイクアウト: ${yen(totalTO)} (${toPct}%)<br>
+              🛍️物販売上: ${yen(totalRE)} (${rePct}%)
             </div>
           </div>
           <div class="card" style="margin:0; border-top:3px solid ${totalColor}; display:flex; flex-direction:column; justify-content:center;">
