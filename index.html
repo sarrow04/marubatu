@@ -3,12 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>中央線 出店シミュレーター</title>
+  <title>中央線 出店シミュレーター Ver.2</title>
   <style>
     body { margin: 0; background: #070e1c; color: #dce8f5; font-family: sans-serif; padding-bottom: 50px; }
     .container { max-width: 600px; margin: 0 auto; padding: 15px; }
     .card { background: #0c1528; border-radius: 10px; padding: 15px; margin-bottom: 15px; border: 1px solid #1a2b42; }
-    .title { color: #fb923c; text-align: center; border-bottom: 1px solid #1a2b42; padding-bottom: 15px; }
+    /* タイトルの色を少し変えて分かりやすくしました */
+    .title { color: #34d399; text-align: center; border-bottom: 1px solid #1a2b42; padding-bottom: 15px; }
     .btn { padding: 10px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px; box-sizing: border-box; font-size: 14px; transition: all 0.2s; }
     .btn-primary { background: #fb923c; color: #000; }
     .btn-outline { background: transparent; border: 1px solid #fb923c; color: #fb923c; }
@@ -17,7 +18,6 @@
     .input-group label { font-size: 11px; color: #8ba3c7; margin-bottom: 3px; }
     .input-group input, .input-group select { background: #070e1c; color: #fb923c; border: 1px solid #1a2b42; padding: 8px; border-radius: 5px; font-size: 16px; font-weight: bold; width: 100%; box-sizing: border-box; outline: none; }
     
-    /* テーブルの装飾 */
     table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 10px; white-space: nowrap; }
     th, td { padding: 8px 4px; text-align: right; border-bottom: 1px solid #1a2b42; }
     th { color: #8ba3c7; font-weight: normal; }
@@ -30,7 +30,7 @@
 </head>
 <body>
   <div class="container">
-    <h2 class="title">中央線 出店シミュレーター</h2>
+    <h2 class="title">中央線 出店シミュレーター <span style="font-size:14px; color:#fb923c;">Ver.2</span></h2>
     
     <div class="grid" style="margin-bottom: 20px;">
       <button id="btn-tab-setup" class="btn btn-primary" onclick="switchTab('setup')">⚙️ 設定</button>
@@ -52,7 +52,7 @@
       </div>
 
       <div class="card">
-        <div style="font-size:12px; color:#8ba3c7; margin-bottom:10px;">4. 営業期間</div>
+        <div style="font-size:12px; color:#8ba3c7; margin-bottom:10px;">4. 営業期間（月ごと）</div>
         <div class="grid">
           <div class="input-group">
             <label>開始月</label>
@@ -97,7 +97,6 @@
   </div>
 
   <script>
-    // ── 立地データ（雨天時の客足影響 rain係数 を追加） ──
     const LOCS = {
       "阿佐ヶ谷": [
         {name:"パールセンター", rent:22, ff:1.2, wk:1.12, rain:0.95, note:"アーケードで雨に強い"}, 
@@ -123,16 +122,14 @@
       ]
     };
 
-    // ── テンプレート（その他を追加） ──
     const PRESETS = [
       {name:"☕ カフェ", p:1100, ur:40, av:52, cr:45},
       {name:"🍜 ラーメン", p:950, ur:50, av:36, cr:48},
       {name:"🍕 ピザ", p:3500, ur:80, av:24, cr:55},
       {name:"🍺 居酒屋", p:3200, ur:35, av:18, cr:52},
-      {name:"✏️ その他", p:2000, ur:20, av:24, cr:50} // 新規追加
+      {name:"✏️ その他", p:2000, ur:20, av:24, cr:50} 
     ];
 
-    // ── 気候データ（月ごとの集客力・降水確率・気温） ──
     const M_DATA = {
       1: { tm: 0.82, rainP: 0.15, temp: "5℃ (寒冬)" },
       2: { tm: 0.85, rainP: 0.18, temp: "6℃ (寒冬)" },
@@ -153,7 +150,6 @@
     const el = (id) => document.getElementById(id);
     const val = (id) => Number(el(id).value);
 
-    // 画面初期化
     window.onload = () => {
       const stSelect = el("station");
       for(let s in LOCS) stSelect.innerHTML += `<option value="${s}">${s}</option>`;
@@ -165,7 +161,6 @@
       updateLocs();
     };
 
-    // 立地の更新
     function updateLocs() {
       const st = el("station").value;
       const cont = el("loc-container");
@@ -209,7 +204,6 @@
       window.scrollTo(0, 0);
     }
 
-    // ── メインシミュレーション処理 ──
     function runSim() {
       const st = el("station").value;
       const loc = LOCS[st][selLocIdx];
@@ -220,35 +214,31 @@
       const startM = val("v-start-m");
       const endM = val("v-end-m");
 
-      // 指定された月の配列を作成（年またぎ対応）
       let monthsToRun = [];
       let cur = startM;
       while(true) {
         monthsToRun.push(cur);
         if (cur === endM) break;
         cur = cur === 12 ? 1 : cur + 1;
-        if (monthsToRun.length > 24) break; // 無限ループ防止（最大24ヶ月）
+        if (monthsToRun.length > 24) break; 
       }
 
       let totalRev = 0, totalProfit = 0;
       let tableHTML = "";
 
       monthsToRun.forEach(m => {
-        const days = new Date(2025, m, 0).getDate(); // その月の日数
+        const days = new Date(2025, m, 0).getDate(); 
         const mData = M_DATA[m];
         
         let mRev = 0;
         let rainDays = 0;
         
         for(let d = 1; d <= days; d++) {
-          const isWk = new Date(2025, m-1, d).getDay() % 6 === 0; // 週末判定
-          const isRain = Math.random() < mData.rainP; // 降水確率による天候ガチャ
+          const isWk = new Date(2025, m-1, d).getDay() % 6 === 0; 
+          const isRain = Math.random() < mData.rainP; 
           if(isRain) rainDays++;
 
-          // 基礎売上 ＝ 仮想人口1万人 × 利用率 × 来店回数 × 単価 ÷ 365
           const base = (10000 * (ur/100) * av * price * 0.03) / 365;
-          
-          // 立地補正 × 月気候補正 × 週末補正 × 天候補正(雨なら立地のrain係数)
           mRev += base * loc.ff * mData.tm * (isWk ? loc.wk : 1.0) * (isRain ? loc.rain : 1.0);
         }
         
