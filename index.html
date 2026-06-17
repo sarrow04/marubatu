@@ -3,15 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>中央線 出店シミュレーター Ver.2</title>
+  <title>中央線 出店シミュレーター Ver.3</title>
   <style>
     body { margin: 0; background: #070e1c; color: #dce8f5; font-family: sans-serif; padding-bottom: 50px; }
     .container { max-width: 600px; margin: 0 auto; padding: 15px; }
     .card { background: #0c1528; border-radius: 10px; padding: 15px; margin-bottom: 15px; border: 1px solid #1a2b42; }
-    /* タイトルの色を少し変えて分かりやすくしました */
     .title { color: #34d399; text-align: center; border-bottom: 1px solid #1a2b42; padding-bottom: 15px; }
     .btn { padding: 10px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px; box-sizing: border-box; font-size: 14px; transition: all 0.2s; }
     .btn-primary { background: #fb923c; color: #000; }
+    .btn-primary:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
     .btn-outline { background: transparent; border: 1px solid #fb923c; color: #fb923c; }
     .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .input-group { display: flex; flex-direction: column; margin-bottom: 10px; }
@@ -30,7 +30,7 @@
 </head>
 <body>
   <div class="container">
-    <h2 class="title">中央線 出店シミュレーター <span style="font-size:14px; color:#fb923c;">Ver.2</span></h2>
+    <h2 class="title">中央線 出店シミュレーター <span style="font-size:14px; color:#fb923c;">Ver.3</span></h2>
     
     <div class="grid" style="margin-bottom: 20px;">
       <button id="btn-tab-setup" class="btn btn-primary" onclick="switchTab('setup')">⚙️ 設定</button>
@@ -74,75 +74,67 @@
       </div>
 
       <div class="card">
-        <div style="font-size:12px; color:#8ba3c7; margin-bottom:10px;">5. 詳細数値を調整</div>
-        <div class="grid">
-          <div class="input-group"><label>客単価 (円)</label><input type="number" id="v-price" value="1100"></div>
-          <div class="input-group"><label>原価率 (%)</label><input type="number" id="v-cr" value="45"></div>
-          <div class="input-group"><label>利用率 (%)</label><input type="number" id="v-ur" value="40"></div>
-          <div class="input-group"><label>年間来店回数</label><input type="number" id="v-av" value="52"></div>
-          <div class="input-group"><label>スタッフ数</label><input type="number" id="v-staff" value="3"></div>
-          <div class="input-group"><label>時給 (円)</label><input type="number" id="v-wage" value="1100"></div>
-          <div class="input-group"><label>労働時間/日</label><input type="number" id="v-hrs" value="8"></div>
-          <div class="input-group"><label>広告・光熱費/月 (円)</label><input type="number" id="v-fixed" value="60000"></div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <div style="font-size:12px; color:#8ba3c7;">5. 売上内訳の割合設定</div>
+          <div id="pct-total-info" style="font-size:12px; font-weight:bold; color:#34d399;">合計: 100% (OK)</div>
+        </div>
+        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px;">
+          <div class="input-group"><label>🍽️ イートイン (%)</label><input type="number" id="v-ei" value="70" oninput="checkTotal()"></div>
+          <div class="input-group"><label>🥡 テイクアウト (%)</label><input type="number" id="v-to" value="30" oninput="checkTotal()"></div>
+          <div class="input-group"><label>🛍️ 物販 (%)</label><input type="number" id="v-re" value="0" oninput="checkTotal()"></div>
         </div>
       </div>
 
-      <button class="btn btn-primary" style="padding:15px; font-size:16px;" onclick="runSim()">▶ シミュレーション実行</button>
+      <div class="card">
+        <div style="font-size:12px; color:#8ba3c7; margin-bottom:10px;">6. 詳細数値を調整</div>
+        <div class="grid">
+          <div class="input-group"><label>客単価 (円)</label><input type="number" id="v-price" value="1100"></div>
+          <div class="input-group"><label>原価率 (%)</label><input type="number" id="v-cr" value="45"></div>
+          <div class="input-group"><label>月間営業日数 (日)</label><input type="number" id="v-opendays" value="25"></div> <div class="input-group"><label>年間来店回数/人</label><input type="number" id="v-av" value="52"></div>
+          <div class="input-group"><label>利用率 (%)</label><input type="number" id="v-ur" value="40"></div>
+          <div class="input-group"><label>スタッフ数/日</label><input type="number" id="v-staff" value="3"></div>
+          <div class="input-group"><label>時給 (円)</label><input type="number" id="v-wage" value="1100"></div>
+          <div class="input-group"><label>総労働時間/日 (h)</label><input type="number" id="v-hrs" value="8"></div>
+          <div class="input-group" style="grid-column: span 2;"><label>その他固定費・広告費/月 (円)</label><input type="number" id="v-fixed" value="60000"></div>
+        </div>
+      </div>
+
+      <button id="btn-run" class="btn btn-primary" style="padding:15px; font-size:16px;" onclick="runSim()">▶ シミュレーション実行</button>
     </div>
 
     <div id="view-result" class="hidden">
       <div id="result-content"></div>
-      <button class="btn btn-outline" style="padding:15px; font-size:14px; margin-top:20px;" onclick="switchTab('setup')">🔄 設定をやり直す</button>
+      
+      <div class="grid" style="margin-top:20px;">
+        <button class="btn btn-outline" onclick="switchTab('setup')">⚙️ 設定を戻す</button>
+        <button class="btn btn-primary" onclick="runSim()">🔄 同じ条件で再計算 (検定)</button>
+      </div>
     </div>
   </div>
 
   <script>
     const LOCS = {
-      "阿佐ヶ谷": [
-        {name:"パールセンター", rent:22, ff:1.2, wk:1.12, rain:0.95, note:"アーケードで雨に強い"}, 
-        {name:"スターロード", rent:14, ff:0.75, wk:1.05, rain:0.55, note:"居酒屋向き。雨天激減"}, 
-        {name:"住宅街", rent:9, ff:0.45, wk:0.95, rain:0.7, note:"固定客。低家賃"}
-      ],
-      "高円寺": [
-        {name:"高円寺商店街", rent:18, ff:1.1, wk:1.25, rain:0.75, note:"週末遠方客多い"}, 
-        {name:"住宅街", rent:10, ff:0.55, wk:0.9, rain:0.65, note:"生活密着。常連率高め"}
-      ],
-      "荻窪": [
-        {name:"駅前商圏", rent:24, ff:1.3, wk:1.18, rain:0.8, note:"ターミナル・乗換客"}, 
-        {name:"住宅街", rent:11, ff:0.5, wk:0.92, rain:0.68, note:"落ち着いたランチ需要"}
-      ],
-      "中野": [
-        {name:"ブロードウェイ", rent:26, ff:1.5, wk:1.3, rain:0.85, note:"オタク層の聖地。集客大"}, 
-        {name:"住宅街", rent:13, ff:0.6, wk:1.0, rain:0.7, note:"オフィスワーカーも"}
-      ],
-      "吉祥寺": [
-        {name:"サンロード", rent:28, ff:1.35, wk:1.28, rain:0.88, note:"アーケード。回遊客"}, 
-        {name:"井の頭公園", rent:30, ff:1.4, wk:1.35, rain:0.65, note:"おしゃれ激戦区"}, 
-        {name:"住宅街", rent:14, ff:0.55, wk:0.88, rain:0.72, note:"高所得ファミリー層"}
-      ]
+      "阿佐ヶ谷": [{name:"パールセンター", rent:22, ff:1.2, wk:1.12, rain:0.95, note:"アーケードで雨に強い"}, {name:"スターロード", rent:14, ff:0.75, wk:1.05, rain:0.55, note:"居酒屋向き。雨天激減"}, {name:"住宅街", rent:9, ff:0.45, wk:0.95, rain:0.7, note:"固定客。低家賃"}],
+      "高円寺": [{name:"高円寺商店街", rent:18, ff:1.1, wk:1.25, rain:0.75, note:"週末遠方客多い"}, {name:"住宅街", rent:10, ff:0.55, wk:0.9, rain:0.65, note:"生活密着。常連率高め"}],
+      "荻窪": [{name:"駅前商圏", rent:24, ff:1.3, wk:1.18, rain:0.8, note:"ターミナル・乗換客"}, {name:"住宅街", rent:11, ff:0.5, wk:0.92, rain:0.68, note:"落ち着いたランチ需要"}],
+      "中野": [{name:"ブロードウェイ", rent:26, ff:1.5, wk:1.3, rain:0.85, note:"オタク層の聖地。集客大"}, {name:"住宅街", rent:13, ff:0.6, wk:1.0, rain:0.7, note:"オフィスワーカーも"}],
+      "吉祥寺": [{name:"サンロード", rent:28, ff:1.35, wk:1.28, rain:0.88, note:"アーケード。回遊客"}, {name:"井の頭公園", rent:30, ff:1.4, wk:1.35, rain:0.65, note:"おしゃれ激戦区"}, {name:"住宅街", rent:14, ff:0.55, wk:0.88, rain:0.72, note:"高所得ファミリー層"}]
     };
 
+    // 🆕 その他を含めた比率データ
     const PRESETS = [
-      {name:"☕ カフェ", p:1100, ur:40, av:52, cr:45},
-      {name:"🍜 ラーメン", p:950, ur:50, av:36, cr:48},
-      {name:"🍕 ピザ", p:3500, ur:80, av:24, cr:55},
-      {name:"🍺 居酒屋", p:3200, ur:35, av:18, cr:52},
-      {name:"✏️ その他", p:2000, ur:20, av:24, cr:50} 
+      {name:"☕ カフェ", p:1100, ur:40, av:52, cr:45, ei:70, to:30, re:0},
+      {name:"🍜 ラーメン", p:950, ur:50, av:36, cr:48, ei:95, to:5, re:0},
+      {name:"🍕 ピザ", p:3500, ur:80, av:24, cr:55, ei:60, to:40, re:0},
+      {name:"🍺 居酒屋", p:3200, ur:35, av:18, cr:52, ei:100, to:0, re:0},
+      {name:"✏️ その他", p:2000, ur:20, av:24, cr:50, ei:50, to:30, re:20} 
     ];
 
     const M_DATA = {
-      1: { tm: 0.82, rainP: 0.15, temp: "5℃ (寒冬)" },
-      2: { tm: 0.85, rainP: 0.18, temp: "6℃ (寒冬)" },
-      3: { tm: 0.95, rainP: 0.25, temp: "11℃ (春先)" },
-      4: { tm: 1.05, rainP: 0.24, temp: "16℃ (春爛漫)" },
-      5: { tm: 1.08, rainP: 0.22, temp: "21℃ (初夏)" },
-      6: { tm: 0.92, rainP: 0.45, temp: "23℃ (梅雨)" },
-      7: { tm: 0.88, rainP: 0.28, temp: "27℃ (猛暑)" },
-      8: { tm: 0.85, rainP: 0.25, temp: "29℃ (台風)" },
-      9: { tm: 0.90, rainP: 0.30, temp: "25℃ (残暑)" },
-      10:{ tm: 1.05, rainP: 0.18, temp: "19℃ (秋晴)" },
-      11:{ tm: 1.00, rainP: 0.18, temp: "13℃ (晩秋)" },
-      12:{ tm: 0.88, rainP: 0.17, temp: "8℃ (初冬)" }
+      1: { tm: 0.82, rainP: 0.15, temp: "5℃ (寒冬)" },2: { tm: 0.85, rainP: 0.18, temp: "6℃ (寒冬)" },3: { tm: 0.95, rainP: 0.25, temp: "11℃ (春先)" },
+      4: { tm: 1.05, rainP: 0.24, temp: "16℃ (春爛漫)" },5: { tm: 1.08, rainP: 0.22, temp: "21℃ (初夏)" },6: { tm: 0.92, rainP: 0.45, temp: "23℃ (梅雨)" },
+      7: { tm: 0.88, rainP: 0.28, temp: "27℃ (猛暑)" },8: { tm: 0.85, rainP: 0.25, temp: "29℃ (台風)" },9: { tm: 0.90, rainP: 0.30, temp: "25℃ (残暑)" },
+      10:{ tm: 1.05, rainP: 0.18, temp: "19℃ (秋晴)" },11:{ tm: 1.00, rainP: 0.18, temp: "13℃ (晩秋)" },12:{ tm: 0.88, rainP: 0.17, temp: "8℃ (初冬)" }
     };
 
     let selLocIdx = 0;
@@ -159,28 +151,35 @@
         preCont.innerHTML += `<button class="btn btn-outline" style="margin-top:0; font-size:12px; padding:8px 4px;" onclick="applyPreset(${i})">${p.name}</button>`;
       });
       updateLocs();
+      checkTotal();
     };
 
+    // 🆕 100%チェックシステム
+    function checkTotal() {
+      const total = val("v-ei") + val("v-to") + val("v-re");
+      const info = el("pct-total-info");
+      if(total === 100) {
+        info.innerHTML = "合計: 100% (OK)"; info.style.color = "#34d399";
+        el("btn-run").disabled = false;
+      } else {
+        info.innerHTML = `合計: ${total}% (100%にしてください)`; info.style.color = "#f43f5e";
+        el("btn-run").disabled = true;
+      }
+    }
+
     function updateLocs() {
-      const st = el("station").value;
-      const cont = el("loc-container");
-      cont.innerHTML = "";
-      selLocIdx = 0;
+      const st = el("station").value; const cont = el("loc-container"); cont.innerHTML = ""; selLocIdx = 0;
       LOCS[st].forEach((l, i) => {
         cont.innerHTML += `
           <label class="radio-label ${i===0?'active':''}" id="lbl-loc-${i}" onclick="selectLoc(${i})">
-            <div style="display:flex; align-items:center;">
-              <input type="radio" name="loc" ${i===0?'checked':''} style="margin-right:10px;">
-              <span>${l.name} (家賃: ${l.rent}万円)</span>
-            </div>
+            <div style="display:flex; align-items:center;"><input type="radio" name="loc" ${i===0?'checked':''} style="margin-right:10px;"><span>${l.name} (家賃: ${l.rent}万円)</span></div>
             <div class="note">${l.note}</div>
           </label>`;
       });
     }
 
     function selectLoc(idx) {
-      selLocIdx = idx;
-      const st = el("station").value;
+      selLocIdx = idx; const st = el("station").value;
       LOCS[st].forEach((_, i) => {
         el(`lbl-loc-${i}`).className = "radio-label" + (i === idx ? " active" : "");
         el(`lbl-loc-${i}`).querySelector("input").checked = (i === idx);
@@ -189,8 +188,9 @@
 
     function applyPreset(idx) {
       const p = PRESETS[idx];
-      el("v-price").value = p.p; el("v-cr").value = p.cr;
-      el("v-ur").value = p.ur; el("v-av").value = p.av;
+      el("v-price").value = p.p; el("v-cr").value = p.cr; el("v-ur").value = p.ur; el("v-av").value = p.av;
+      el("v-ei").value = p.ei; el("v-to").value = p.to; el("v-re").value = p.re;
+      checkTotal();
     }
 
     function switchTab(t) {
@@ -205,67 +205,65 @@
     }
 
     function runSim() {
-      const st = el("station").value;
-      const loc = LOCS[st][selLocIdx];
-      
+      const st = el("station").value; const loc = LOCS[st][selLocIdx];
       const price = val("v-price"), cr = val("v-cr"), ur = val("v-ur"), av = val("v-av");
       const staff = val("v-staff"), wage = val("v-wage"), hrs = val("v-hrs"), fixed = val("v-fixed");
-      
-      const startM = val("v-start-m");
-      const endM = val("v-end-m");
+      const startM = val("v-start-m"), endM = val("v-end-m"), openDays = val("v-opendays");
 
-      let monthsToRun = [];
-      let cur = startM;
-      while(true) {
-        monthsToRun.push(cur);
-        if (cur === endM) break;
-        cur = cur === 12 ? 1 : cur + 1;
-        if (monthsToRun.length > 24) break; 
-      }
+      let monthsToRun = []; let cur = startM;
+      while(true) { monthsToRun.push(cur); if (cur === endM) break; cur = cur === 12 ? 1 : cur + 1; if (monthsToRun.length > 24) break; }
 
-      let totalRev = 0, totalProfit = 0;
+      const eiPct = val("v-ei"), toPct = val("v-to"), rePct = val("v-re");
+      let totalRev = 0, totalProfit = 0, totalEI = 0, totalTO = 0, totalRE = 0;
       let tableHTML = "";
 
       monthsToRun.forEach(m => {
-        const days = new Date(2025, m, 0).getDate(); 
-        const mData = M_DATA[m];
-        
-        let mRev = 0;
-        let rainDays = 0;
+        const days = new Date(2025, m, 0).getDate(); const mData = M_DATA[m];
+        let mRevEI = 0, mRevTO = 0, mRevRE = 0, rainDays = 0;
         
         for(let d = 1; d <= days; d++) {
-          const isWk = new Date(2025, m-1, d).getDay() % 6 === 0; 
-          const isRain = Math.random() < mData.rainP; 
+          const isWk = new Date(2025, m-1, d).getDay() % 6 === 0;
+          const isRain = Math.random() < mData.rainP;
           if(isRain) rainDays++;
 
           const base = (10000 * (ur/100) * av * price * 0.03) / 365;
-          mRev += base * loc.ff * mData.tm * (isWk ? loc.wk : 1.0) * (isRain ? loc.rain : 1.0);
+          const baseEI = base * (eiPct / 100), baseTO = base * (toPct / 100), baseRE = base * (rePct / 100);
+          
+          // 🆕 天候影響を内訳ごとに個別計算
+          const curRainEI = isRain ? loc.rain : 1.0; 
+          const curRainTO = isRain ? (loc.rain + 1) / 2 : 1.0; // 持帰は雨の影響がマイルド
+          const curRainRE = 1.0; // 物販は雨影響なし
+          
+          const common = loc.ff * mData.tm * (isWk ? loc.wk : 1.0);
+          mRevEI += baseEI * common * curRainEI;
+          mRevTO += baseTO * common * curRainTO;
+          mRevRE += baseRE * common * curRainRE;
         }
         
+        // 🆕 実営業日数の割合を売上に反映
+        const openRatio = Math.min(1, openDays / days);
+        const finalEI = mRevEI * openRatio;
+        const finalTO = mRevTO * openRatio;
+        const finalRE = mRevRE * openRatio;
+        const mRev = finalEI + finalTO + finalRE;
+
         const fRent = loc.rent * 10000;
-        const fLabor = staff * wage * hrs * days;
+        const fLabor = staff * wage * hrs * openDays; // 🆕 人件費も実営業日数ベースに修正
         const vCogs = mRev * (cr/100);
         const mProfit = mRev - fRent - fLabor - fixed - vCogs;
 
-        totalRev += mRev;
-        totalProfit += mProfit;
-
+        totalRev += mRev; totalEI += finalEI; totalTO += finalTO; totalRE += finalRE; totalProfit += mProfit;
         const pColor = mProfit >= 0 ? "#34d399" : "#f43f5e";
-        const sunnyDays = days - rainDays;
 
         tableHTML += `
           <tr style="border-bottom: 1px solid #152040;">
-            <td style="text-align:center; color:#fff;">
-              <div style="font-size:13px; font-weight:bold;">${m}月</div>
-              <div style="font-size:9px; color:#8ba3c7;">${mData.temp}</div>
-            </td>
-            <td style="text-align:center; font-size:10px;">☀️${sunnyDays}日<br>☔️${rainDays}日</td>
+            <td style="text-align:center; color:#fff;"><strong>${m}月</strong><br><span style="font-size:9px;color:#8ba3c7">${mData.temp}</span></td>
+            <td style="text-align:center; font-size:10px;">☀️${days - rainDays}日<br>☔️${rainDays}日</td>
             <td style="color:#fb923c; font-weight:bold;">${yen(mRev)}</td>
-            <td style="color:#8ba3c7;">${yen(vCogs)}</td>
-            <td style="color:#8ba3c7;">${yen(fLabor)}</td>
+            <td>${yen(vCogs)}</td>
+            <td>${yen(fLabor)}</td>
             <td style="font-weight:bold; color:${pColor};">${yen(mProfit)}</td>
-          </tr>
-        `;
+          </tr>`;
       });
 
       const totalColor = totalProfit >= 0 ? "#34d399" : "#f43f5e";
@@ -273,26 +271,27 @@
       el("result-content").innerHTML = `
         <div class="grid" style="margin-bottom:15px;">
           <div class="card" style="margin:0; border-top:3px solid #fb923c;">
-            <div style="font-size:11px; color:#8ba3c7;">期間売上合計 (${monthsToRun.length}ヶ月)</div>
+            <div style="font-size:11px; color:#8ba3c7;">期間売上合計 (${monthsToRun.length}ヶ月 / 月${openDays}日営業)</div>
             <div style="font-size:18px; font-weight:bold; color:#fb923c;">${yen(totalRev)}</div>
+            <div style="font-size:10px; color:#8ba3c7; margin-top:8px; border-top:1px dashed #1a2b42; padding-top:6px; line-height:1.4;">
+              🍽️店外食: ${yen(totalEI)} (${eiPct}%)<br>
+              🥡持帰り: ${yen(totalTO)} (${toPct}%)<br>
+              🛍️物品販売: ${yen(totalRE)} (${rePct}%)
+            </div>
           </div>
-          <div class="card" style="margin:0; border-top:3px solid ${totalColor};">
+          <div class="card" style="margin:0; border-top:3px solid ${totalColor}; display:flex; flex-direction:column; justify-content:center;">
             <div style="font-size:11px; color:#8ba3c7;">期間利益合計</div>
-            <div style="font-size:18px; font-weight:bold; color:${totalColor};">${yen(totalProfit)}</div>
+            <div style="font-size:22px; font-weight:bold; color:${totalColor};">${yen(totalProfit)}</div>
           </div>
         </div>
         
         <div class="card" style="overflow-x:auto; padding:10px 5px;">
           <div style="font-size:12px; color:#8ba3c7; margin-bottom:10px; padding-left:10px;">月次シミュレーション詳細</div>
           <table>
-            <thead><tr>
-              <th style="text-align:center;">月/気候</th><th style="text-align:center;">天気</th>
-              <th>売上</th><th>原価</th><th>人件費</th><th>利益</th>
-            </tr></thead>
+            <thead><tr><th style="text-align:center;">月/気候</th><th style="text-align:center;">天気</th><th>売上</th><th>原価</th><th>人件費</th><th>利益</th></tr></thead>
             <tbody>${tableHTML}</tbody>
           </table>
-        </div>
-      `;
+        </div>`;
       switchTab('result');
     }
   </script>
