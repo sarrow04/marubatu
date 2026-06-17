@@ -4,17 +4,141 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>中央線 出店シミュレーター</title>
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    body { font-family: 'Noto Sans JP', 'Hiragino Sans', sans-serif; margin: 0; background: #080e1a; color: #e2e8f0; padding-bottom: 60px; }
+    button { cursor: pointer; transition: all .15s; }
+    input[type="range"] { width: 100%; accent-color: #fb923c; cursor: pointer; }
+    table { width: 100%; border-collapse: collapse; font-size: 11px; text-align: center; }
+    th { padding: 8px 4px; color: #64748b; }
+    td { padding: 6px 4px; }
+    .sec-title { font-size: 9px; letter-spacing: 3px; color: #334155; margin: 22px 0 9px; text-transform: uppercase; }
+    .card { background: #0f1825; border-radius: 10px; padding: 10px 11px; box-sizing: border-box; }
+    .card-title { font-size: 10px; color: #64748b; margin-bottom: 5px; }
+    .card-num { font-size: 20px; font-weight: 900; display: flex; align-items: center; gap: 4px; }
+    .card-num input { width: 100%; background: transparent; border: none; font-size: 20px; font-weight: 900; color: inherit; outline: none; }
+    .card-note { font-size: 9px; color: #334155; marginTop: 3px; }
+    .pill { padding: 6px 15px; border-radius: 999px; border: none; font-size: 12px; font-weight: 700; background: #0f1825; color: #334155; }
+    .pill.active { background: linear-gradient(90deg, #fb923c, #f43f5e); color: #fff; box-shadow: 0 0 12px rgba(244,63,94,0.4); }
+    .chip { padding: 5px 11px; border-radius: 999px; border: none; font-size: 11px; font-weight: 700; background: #0f1825; color: #334155; }
+    .chip.active { background: #1e3a5f; color: #38bdf8; }
+  </style>
 </head>
-<body style="margin: 0; background: #080e1a;">
-  <div id="root"></div>
+<body>
 
-  <script type="text/babel">
-    const { useState, useCallback, useEffect } = React;
+  <div style="background: #0d1526; border-bottom: 1px solid #1a2540; padding: 22px 16px 16px; text-align: center;">
+    <div style="font-size: 9px; letter-spacing: 5px; color: #3a4a6b; margin-bottom: 4px;">CHŪŌ LINE BUSINESS SIMULATOR</div>
+    <h1 style="margin: 0; font-size: 22px; font-weight: 900; background: linear-gradient(90deg, #fb923c, #f43f5e, #a855f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+      中央線 出店シミュレーター
+    </h1>
+  </div>
 
-    // ── データ定義 ─────────────────────────────────────────────────────
+  <div style="display: flex; background: #0d1526; border-bottom: 1px solid #1a2540;">
+    <button id="btn-tab-setup" onclick="switchTab('setup')" style="flex: 1; padding: 11px 0; border: none; font-size: 13px; font-weight: 700; background: transparent; color: #fb923c; border-bottom: 2px solid #fb923c;">⚙️ 設定</button>
+    <button id="btn-tab-result" onclick="switchTab('result')" style="flex: 1; padding: 11px 0; border: none; font-size: 13px; font-weight: 700; background: transparent; color: #334155; border-bottom: 2px solid transparent;">📊 結果・検定 <span id="history-count"></span></button>
+  </div>
+
+  <div style="max-width: 740px; margin: 0 auto; padding: 0 13px;">
+    
+    <div id="panel-setup">
+      <div id="history-alert" style="display: none; margin-top: 15px; padding: 10px; background: #1a2540; border-radius: 8px; font-size: 12px; justify-content: space-between; align-items: center;">
+        <span>現在 <strong id="alert-count">0回</strong> の履歴があります。条件を変えて実行するとA/B比較ができます。</span>
+        <button onclick="clearHistory()" style="background: #f43f5e; color: #fff; border: none; border-radius: 4px; padding: 4px 8px; font-size: 11px;">履歴リセット</button>
+      </div>
+
+      <div class="sec-title">エリアを選ぶ</div>
+      <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px;" id="station-pills"></div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 7px;" id="location-cards"></div>
+
+      <div class="sec-title">業種を選ぶ</div>
+      <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px;" id="preset-buttons"></div>
+
+      <div class="sec-title">売上構成 & 単価</div>
+      <div style="margin-bottom: 12px; background:#0f1825; padding:12px; border-radius:10px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <span style="font-size: 11px; color: #64748b;">平均客単価</span>
+          <span style="font-size: 20px; font-weight: 900; color: #fb923c;" id="display-unitPrice">¥1,100</span>
+        </div>
+        <input type="range" id="slider-unitPrice" min="100" max="20000" step="100" value="1100" oninput="updateParam('unitPrice', this.value)">
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
+        <div class="card" style="border: 1px solid rgba(251,146,60,0.15); color:#fb923c;">
+          <div class="card-title">🍽️ イートイン</div>
+          <div class="card-num"><input type="number" id="input-eatIn" value="70" oninput="updateParam('eatIn', this.value)"><span>%</span></div>
+        </div>
+        <div class="card" style="border: 1px solid rgba(56,189,248,0.15); color:#38bdf8;">
+          <div class="card-title">🥡 テイクアウト</div>
+          <div class="card-num"><input type="number" id="input-takeout" value="30" oninput="updateParam('takeout', this.value)"><span>%</span></div>
+        </div>
+        <div class="card" style="border: 1px solid rgba(168,85,247,0.15); color:#a855f7;">
+          <div class="card-title">🛍️ 物販</div>
+          <div class="card-num"><input type="number" id="input-retail" value="0" oninput="updateParam('retail', this.value)"><span>%</span></div>
+        </div>
+      </div>
+      <div id="mix-error" style="display:none; color:#f43f5e; font-size:11px; margin-top:6px;">⚠ 合計を100%にしてください</div>
+
+      <div class="sec-title">ターゲット人口</div>
+      <div style="background:#0f1825; padding:12px; border-radius:10px;">
+        <div style="display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 7px;" id="age-chips"></div>
+        <div style="display: flex; gap: 7px; margin-bottom: 7px;" id="gender-chips"></div>
+        <div style="font-size: 12px; color: #475569;">ターゲット人口: <strong style="color: #38bdf8; font-size: 15px;" id="display-pop">0人</strong></div>
+      </div>
+
+      <div class="sec-title">コスト設定</div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 9px;">
+        <div class="card" style="color:#fb923c;"><div class="card-title">原価率</div><div class="card-num"><input type="number" id="input-costRate" value="45" oninput="updateParam('costRate', this.value)"><span>%</span></div></div>
+        <div class="card" style="color:#a855f7;"><div class="card-title">スタッフ時給</div><div class="card-num"><input type="number" id="input-hourlyWage" value="1100" oninput="updateParam('hourlyWage', this.value)"><span>円</span></div></div>
+        <div class="card" style="color:#a855f7;"><div class="card-title">1日の労働時間合計</div><div class="card-num"><input type="number" id="input-hoursPerDay" value="8" oninput="updateParam('hoursPerDay', this.value)"><span>h</span></div></div>
+        <div class="card" style="color:#a855f7;"><div class="card-title">スタッフ数</div><div class="card-num"><input type="number" id="input-staffCount" value="3" oninput="updateParam('staffCount', this.value)"><span>人</span></div></div>
+        <div class="card" style="color:#34d399;"><div class="card-title">月次広告費</div><div class="card-num"><input type="number" id="input-adMonthly" value="30000" oninput="updateParam('adMonthly', this.value)"><span>円</span></div></div>
+        <div class="card" style="color:#38bdf8;"><div class="card-title">水道光熱費・雑費</div><div class="card-num"><input type="number" id="input-miscMonthly" value="50000" oninput="updateParam('miscMonthly', this.value)"><span>円</span></div></div>
+      </div>
+
+      <div style="margin-top: 12px; padding: 9px 12px; background: #0d1526; border-radius: 9px; font-size: 11px; color: #64748b; line-height: 1.7;">
+        <div>月次固定費合計: <strong style="color: #38bdf8;" id="preview-fixed">0円</strong></div>
+        <div>損益分岐点（月商）: <strong style="color: #fb923c;" id="preview-bep">0円</strong></div>
+      </div>
+
+      <div class="sec-title">フェルミ推計パラメータ</div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 9px;">
+        <div class="card"><div class="card-title">利用率 (<span id="txt-usageRate">40</span>%)</div><input type="range" id="slider-usageRate" min="1" max="100" value="40" oninput="updateParam('usageRate', this.value)"></div>
+        <div class="card"><div class="card-title">年間利用回数 (<span id="txt-annualVisits">52</span>回)</div><input type="range" id="slider-annualVisits" min="1" max="120" value="52" oninput="updateParam('annualVisits', this.value)"></div>
+        <div class="card"><div class="card-title">市場シェア (<span id="txt-shareRate">3</span>%)</div><input type="range" id="slider-shareRate" min="1" max="30" value="3" oninput="updateParam('shareRate', this.value)"></div>
+        <div class="card" style="color:#fb923c; display:flex; flex-direction:column; justify-content:center;"><div class="card-title">年商ベース（補正前）</div><div style="font-size:15px; font-weight:900;" id="preview-fermi">¥0</div></div>
+      </div>
+
+      <button id="btn-execute" onclick="executeSimulation()" style="width: 100%; padding: 15px; margin-top: 25px; border-radius: 13px; border: none; background: linear-gradient(90deg, #fb923c, #f43f5e, #a855f7); color: #fff; font-size: 15px; font-weight: 900; box-shadow: 0 0 20px rgba(244,63,94,0.3);">
+        ▶ シミュレーション実行
+      </button>
+    </div>
+
+    <div id="panel-result" style="display: none; margin-top: 18px;">
+      <div style="font-size: 16px; font-weight: 800; margin-bottom: 10px; color: #e2e8f0;" id="result-title">📊 結果サマリー</div>
+      
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px;">
+        <div class="card" style="border-top: 3px solid #fb923c;"><div class="card-title">期間売上合計</div><div style="font-size:15px; font-weight:900; color:#fb923c;" id="res-totalRev">0円</div></div>
+        <div class="card" style="border-top: 3px solid #34d399;" id="card-profit"><div class="card-title">期間利益合計</div><div style="font-size:15px; font-weight:900;" id="res-totalProfit">0円</div></div>
+        <div class="card" style="border-top: 3px solid #34d399;" id="card-avg-profit"><div class="card-title">月平均利益</div><div style="font-size:15px; font-weight:900;" id="res-avgProfit">0円</div></div>
+      </div>
+
+      <div class="sec-title">🔬 検定用データ：最初の7日間のテスト営業（生データ）</div>
+      <div class="card" style="padding: 16px 12px; margin-bottom: 15px;">
+        <p style="font-size: 11px; color: #94a3b8; margin: 0 0 12px; line-height: 1.6;">
+          全体の平均を見るだけでなく、日々の客数のバラつき（乱数によるノイズ）を比較します。<br/>
+          条件を変えてもう一度実行すると、前のデータと横並びで比較して検定（t検定）の謎解きができます。
+        </p>
+        <div id="test-data-container" style="overflow-x:auto;"></div>
+      </div>
+
+      <button onclick="switchTab('setup')" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid #1a2540; background: transparent; color: #475569; font-size: 13px; font-weight: 700;">
+        ← 設定を変更して次の施策パターンを作成する
+      </button>
+    </div>
+
+  </div>
+
+  <script>
+    // データ定義
     const POPULATION_DATA = {
       阿佐ヶ谷:{"10代以下":{女性:1200,男性:1100},"10代":{女性:2600,男性:2400},"20代":{女性:2000,男性:1800},"30代":{女性:2200,男性:2100},"40代":{女性:2300,男性:2200},"50代":{女性:2000,男性:1900},"60代":{女性:1500,男性:1400}},
       高円寺:{"10代以下":{女性:1000,男性:900},"10代":{女性:2200,男性:2100},"20代":{女性:2800,男性:2700},"30代":{女性:2500,男性:2400},"40代":{女性:2400,男性:2300},"50代":{女性:1900,男性:1800},"60代":{女性:1300,男性:1200}},
@@ -56,495 +180,316 @@
     const SHOP_PRESETS = [
       {id:"cafe",   name:"☕ カフェ",    unitPrice:1100,eatIn:70, takeout:30,retail:0,  usageRate:40,annualVisits:52,costRate:45,targetAge:["20代","30代","40代","50代"],targetGender:["男性","女性"],seats:20,turnover:3,repeatRate:40,openingCost:300},
       {id:"ramen",  name:"🍜 ラーメン",  unitPrice:950, eatIn:95, takeout:5, retail:0,  usageRate:50,annualVisits:36,costRate:48,targetAge:["10代","20代","30代","40代"],targetGender:["男性","女性"],seats:16,turnover:4,repeatRate:30,openingCost:350},
-      {id:"pizza",  name:"🍕 ピザ",      unitPrice:3500,eatIn:60, takeout:40,retail:0,  usageRate:80,annualVisits:24,costRate:55,targetAge:["10代","20代","30代","40代","50代"],targetGender:["男性","女性"],seats:24,turnover:2,repeatRate:35,openingCost:500},
-      {id:"gyudon", name:"🥩 牛丼",      unitPrice:1200,eatIn:70, takeout:30,retail:0,  usageRate:40,annualVisits:24,costRate:45,targetAge:["20代","30代","40代"],targetGender:["男性"],seats:18,turnover:5,repeatRate:45,openingCost:250},
-      {id:"barber", name:"💈 床屋",      unitPrice:2500,eatIn:100,takeout:0, retail:0,  usageRate:60,annualVisits:12,costRate:30,targetAge:["30代","40代","50代"],targetGender:["男性"],seats:4, turnover:2,repeatRate:70,openingCost:400},
-      {id:"gelato", name:"🍨 ジェラート",unitPrice:1200,eatIn:20, takeout:80,retail:0,  usageRate:15,annualVisits:24,costRate:50,targetAge:["10代","20代","30代"],targetGender:["男性","女性"],seats:6, turnover:6,repeatRate:25,openingCost:200},
       {id:"izakaya",name:"🍺 居酒屋",    unitPrice:3200,eatIn:100,takeout:0, retail:0,  usageRate:35,annualVisits:18,costRate:52,targetAge:["20代","30代","40代","50代"],targetGender:["男性","女性"],seats:30,turnover:1.5,repeatRate:40,openingCost:600},
       {id:"apparel",name:"👗 アパレル",  unitPrice:4500,eatIn:0,  takeout:0, retail:100,usageRate:12,annualVisits:8, costRate:60,targetAge:["10代","20代","30代","40代"],targetGender:["女性"],seats:0, turnover:0,repeatRate:30,openingCost:400},
-      {id:"pet",    name:"🐾 ペット",    unitPrice:5000,eatIn:0,  takeout:0, retail:100,usageRate:5, annualVisits:12,costRate:55,targetAge:["30代","40代","50代"],targetGender:["男性","女性"],seats:0, turnover:0,repeatRate:55,openingCost:500},
       {id:"custom", name:"✏️ その他",    unitPrice:2000,eatIn:50, takeout:30,retail:20, usageRate:20,annualVisits:24,costRate:50,targetAge:["20代","30代","40代"],targetGender:["男性","女性"],seats:15,turnover:2,repeatRate:30,openingCost:300},
     ];
 
     const ALL_AGES    = ["10代以下","10代","20代","30代","40代","50代","60代"];
     const ALL_GENDERS = ["男性","女性"];
-
     const MONTHLY_WEATHER = {
-      1: {sunny:0.45,cloudy:0.35,rain:0.15,extreme:0.05,tempMod:0.82},
-      2: {sunny:0.42,cloudy:0.33,rain:0.18,extreme:0.07,tempMod:0.85},
-      3: {sunny:0.40,cloudy:0.30,rain:0.25,extreme:0.05,tempMod:0.95},
       4: {sunny:0.45,cloudy:0.28,rain:0.24,extreme:0.03,tempMod:1.05},
       5: {sunny:0.48,cloudy:0.28,rain:0.22,extreme:0.02,tempMod:1.08},
       6: {sunny:0.22,cloudy:0.28,rain:0.45,extreme:0.05,tempMod:0.92},
       7: {sunny:0.38,cloudy:0.22,rain:0.28,extreme:0.12,tempMod:0.88},
       8: {sunny:0.38,cloudy:0.20,rain:0.25,extreme:0.17,tempMod:0.85},
-      9: {sunny:0.35,cloudy:0.28,rain:0.30,extreme:0.07,tempMod:0.90},
-      10:{sunny:0.52,cloudy:0.28,rain:0.18,extreme:0.02,tempMod:1.05},
-      11:{sunny:0.48,cloudy:0.32,rain:0.18,extreme:0.02,tempMod:1.00},
-      12:{sunny:0.45,cloudy:0.33,rain:0.17,extreme:0.05,tempMod:0.88},
+      9: {sunny:0.35,cloudy:0.28,rain:0.30,extreme:0.07,tempMod:0.90}
     };
-
     const W_EMOJI = { sunny: "☀️", cloudy: "🌥️", rain: "🌧️", extreme: "⚡" };
 
-    function repeatBonus(repeatRate) { return 1 + (repeatRate / 100) * 0.15; }
+    // シミュレータの状態管理変数
+    let currentStation = "阿佐ヶ谷";
+    let currentLocIdx = 0;
+    let currentPresetId = "cafe";
+    let targetAges = ["20代","30代","40代","50代"];
+    let targetGenders = ["男性","女性"];
+    let history = [];
 
-    function simulateMonth(monthNum, locData, p, adBoostRate) {
-      const wt = MONTHLY_WEATHER[monthNum];
-      const days = new Date(2025, monthNum, 0).getDate();
-      let totalRev = 0, totalCust = 0;
-      const wc = {sunny:0,cloudy:0,rain:0,extreme:0};
-      const dailyLogs = [];
-
-      const rb = repeatBonus(p.repeatRate);
-
-      for (let d = 1; d <= days; d++) {
-        const dow = new Date(2025, monthNum-1, d).getDay();
-        const isWeekend = dow===0||dow===6;
-        const roll = Math.random();
-        let wMod, wKey;
-        if      (roll < wt.sunny)                        {wKey="sunny"; wMod=1.0;}
-        else if (roll < wt.sunny+wt.cloudy)              {wKey="cloudy";wMod=0.88;}
-        else if (roll < wt.sunny+wt.cloudy+wt.rain)      {wKey="rain";  wMod=locData.rainResist;}
-        else                                             {wKey="extreme";wMod=0.72;}
-        wc[wKey]++;
-
-        const noise = 0.85 + (Math.random() * 0.30);
-        const base = (p.unitPrice * (p.usageRate/100) * p.annualVisits * (p.shareRate/100)) / 365;
-        const wkMod = isWeekend ? locData.weekendMod : 1.0;
-        
-        const dailyRev = base * locData.footfall * wMod * wt.tempMod * wkMod * (1+adBoostRate) * rb * noise;
-        const dailyCust = Math.round(dailyRev / p.unitPrice);
-        
-        totalRev  += dailyRev;
-        totalCust += dailyCust;
-
-        dailyLogs.push({ day: d, isWeekend, weather: wKey, rev: dailyRev, cust: dailyCust });
-      }
-
-      const fixedRent  = locData.rentBase * 10000;
-      const fixedLabor = p.staffCount * p.hourlyWage * p.hoursPerDay * days;
-      const varCogs    = totalRev * (p.costRate/100);
-      const miscCost   = p.miscMonthly;
-      const adCost     = p.adMonthly;
-      const profit     = totalRev - fixedRent - fixedLabor - varCogs - adCost - miscCost;
-
-      return {monthNum,monthName:`${monthNum}月`,days,totalRev,totalCust,fixedRent,fixedLabor,varCogs,adCost,miscCost,profit,wc,dailyLogs};
-    }
-
-    const yen = (n) => {
-      const s=n<0?"−":""; const a=Math.abs(n);
-      if(a>=1e8) return s+(a/1e8).toFixed(2)+"億円";
-      if(a>=1e4) return s+Math.round(a/1e4)+"万円";
-      return s+Math.round(a).toLocaleString()+"円";
+    // パラメータ群
+    let params = {
+      unitPrice: 1100, eatIn: 70, takeout: 30, retail: 0,
+      costRate: 45, hourlyWage: 1100, hoursPerDay: 8, staffCount: 3, adMonthly: 30000, miscMonthly: 50000,
+      usageRate: 40, annualVisits: 52, shareRate: 3, repeatRate: 40
     };
 
-    // ── メインコンポーネント ───────────────────────────────────────────
-    function ShopSim() {
-      const [station,   setStation]  = useState("阿佐ヶ谷");
-      const [locIdx,    setLocIdx]   = useState(0);
-      const [shopId,    setShopId]   = useState("cafe");
-      const [startMonth,setStartM]   = useState(4);
-      const [endMonth,  setEndM]     = useState(9);
+    // 金額成形ツール
+    const yen = (n) => {
+      const s = n < 0 ? "−" : ""; const a = Math.abs(n);
+      if(a >= 1e8) return s + (a/1e8).toFixed(2) + "億円";
+      if(a >= 1e4) return s + Math.round(a/1e4) + "万円";
+      return s + Math.round(a).toLocaleString() + "円";
+    };
+
+    // 初期化処理
+    window.onload = function() {
+      renderStationPills();
+      renderLocationCards();
+      renderPresetButtons();
+      renderChips();
+      updateTargetPopulation();
+      updatePreviews();
+    };
+
+    function renderStationPills() {
+      const html = Object.keys(LOCATIONS).map(s => 
+        `<button class="pill ${s===currentStation?'active':''}" onclick="selectStation('${s}')">${s}</button>`
+      ).join('');
+      document.getElementById('station-pills').innerHTML = html;
+    }
+
+    function renderLocationCards() {
+      const locs = LOCATIONS[currentStation];
+      const html = locs.map((loc, i) => `
+        <button onclick="selectLocation(${i})" style="padding:11px; border-radius:11px; border:2px solid ${currentLocIdx===i?'#f43f5e':'#182030'}; background:${currentLocIdx===i?'#2d1224':'#0f1825'}; color:${currentLocIdx===i?'#fda4af':'#4a5568'}; text-align:left;">
+          <div style="font-weight:800; font-size:12px; margin-bottom:2px;">${loc.name}</div>
+          <div style="font-size:10px; color:${currentLocIdx===i?'#f87171':'#334155'};">家賃 ${loc.rentBase}万円/月</div>
+          <div style="font-size:10px; color:${currentLocIdx===i?'#fecdd3':'#2d3748'}; margin-top:3px; line-height:1.5;">${loc.note}</div>
+        </button>
+      `).join('');
+      document.getElementById('location-cards').innerHTML = html;
+    }
+
+    function renderPresetButtons() {
+      const html = SHOP_PRESETS.map(s => `
+        <button onclick="selectPreset('${s.id}')" style="padding:8px 3px; border-radius:10px; border:2px solid ${currentPresetId===s.id?'#a855f7':'#182030'}; background:${currentPresetId===s.id?'#1a0d2e':'#0f1825'}; color:${currentPresetId===s.id?'#d8b4fe':'#4a5568'}; font-size:11px; font-weight:700; text-align:center;">
+          <div style="font-size:18px; margin-bottom:1px;">${s.name.split(' ')[0]}</div>
+          <div style="font-size:9px;">${s.name.split(' ').slice(1).join(' ')}</div>
+        </button>
+      `).join('');
+      document.getElementById('preset-buttons').innerHTML = html;
+    }
+
+    function renderChips() {
+      const ageHtml = ALL_AGES.map(a => `<button class="chip ${targetAges.includes(a)?'active':''}" onclick="toggleAge('${a}')">${a}</button>`).join('');
+      document.getElementById('age-chips').innerHTML = ageHtml;
+      const genHtml = ALL_GENDERS.map(g => `<button class="chip ${targetGenders.includes(g)?'active':''}" onclick="toggleGender('${g}')">${g}</button>`).join('');
+      document.getElementById('gender-chips').innerHTML = genHtml;
+    }
+
+    function selectStation(s) { currentStation = s; currentLocIdx = 0; renderStationPills(); renderLocationCards(); updateTargetPopulation(); updatePreviews(); }
+    function selectLocation(i) { currentLocIdx = i; renderLocationCards(); updatePreviews(); }
+    function selectPreset(id) {
+      currentPresetId = id;
+      const p = SHOP_PRESETS.find(x => x.id === id);
+      params.unitPrice = p.unitPrice; params.eatIn = p.eatIn; params.takeout = p.takeout; params.retail = p.retail;
+      params.usageRate = p.usageRate; params.annualVisits = p.annualVisits; params.costRate = p.costRate;
+      targetAges = [...p.targetAge]; targetGenders = [...p.targetGender];
       
-      const [history,   setHistory]  = useState([]);
-      const [results,   setResults]  = useState(null); 
+      // UIへの同期反映
+      document.getElementById('slider-unitPrice').value = p.unitPrice;
+      document.getElementById('input-eatIn').value = p.eatIn;
+      document.getElementById('input-takeout').value = p.takeout;
+      document.getElementById('input-retail').value = p.retail;
+      document.getElementById('input-costRate').value = p.costRate;
+      document.getElementById('slider-usageRate').value = p.usageRate;
+      document.getElementById('slider-annualVisits').value = p.annualVisits;
+
+      renderPresetButtons(); renderChips(); updateTargetPopulation(); updatePreviews();
+    }
+
+    function toggleAge(a) { targetAges = targetAges.includes(a) ? targetAges.filter(x=>x!==a) : [...targetAges, a]; renderChips(); updateTargetPopulation(); }
+    function toggleGender(g) { targetGenders = targetGenders.includes(g) ? targetGenders.filter(x=>x!==g) : [...targetGenders, g]; renderChips(); updateTargetPopulation(); }
+
+    function updateTargetPopulation() {
+      let n = 0; const stData = POPULATION_DATA[currentStation];
+      for(const a of targetAges){ const row = stData[a]; if(!row) continue; for(const g of targetGenders) n += row[g]??0; }
+      document.getElementById('display-pop').innerText = n.toLocaleString() + "人";
+      return n;
+    }
+
+    function updateParam(key, val) {
+      params[key] = parseFloat(val) || 0;
+      if(key === 'unitPrice') document.getElementById('display-unitPrice').innerText = "¥" + params.unitPrice.toLocaleString();
+      if(['usageRate', 'annualVisits', 'shareRate'].includes(key)) document.getElementById('txt-'+key).innerText = val;
+      updatePreviews();
+    }
+
+    function updatePreviews() {
+      const locData = LOCATIONS[currentStation][currentLocIdx];
+      const monthlyFixed = locData.rentBase*10000 + params.staffCount*params.hourlyWage*params.hoursPerDay*30 + params.adMonthly + params.miscMonthly;
+      const bepRevenue = monthlyFixed / (1 - params.costRate/100);
       
-      const [running,   setRunning]  = useState(false);
-      const [tab,       setTab]      = useState("setup"); 
-
-      const [shopName,    setShopName]   = useState("");
-      const [unitPrice,   setUnitPrice]  = useState(1100);
-      const [eatInPct,    setEatInPct]   = useState(70);
-      const [takeoutPct,  setTakeoutPct] = useState(30);
-      const [retailPct,   setRetailPct]  = useState(0);
-      const [usageRate,   setUsageRate]  = useState(40);
-      const [annualVisits,setAnnVisits]  = useState(52);
-      const [costRate,    setCostRate]   = useState(45);
-      const [shareRate,   setShareRate]  = useState(3);
-      const [staffCount,  setStaffCount] = useState(3);
-      const [hourlyWage,  setHourlyWage] = useState(1100);
-      const [hoursPerDay, setHoursPerDay]= useState(8);
-      const [adMonthly,   setAdMonthly]  = useState(30000);
-      const [miscMonthly, setMiscMonthly]= useState(50000);
-      const [repeatRate,  setRepeatRate] = useState(40);
-      const [seats,       setSeats]      = useState(20);
-      const [turnover,    setTurnover]   = useState(3);
-      const [openingCost, setOpeningCost]= useState(300);
-      const [targetAges,  setTargetAges] = useState(["20代","30代","40代","50代"]);
-      const [targetGenders,setTargetG]   = useState(["男性","女性"]);
-
-      const locOptions = LOCATIONS[station];
-      const locData    = locOptions[Math.min(locIdx, locOptions.length-1)];
-      const stData     = POPULATION_DATA[station];
-
-      const targetPop = (() => {
-        let n=0;
-        for(const a of targetAges){const row=stData[a];if(!row)continue;for(const g of targetGenders)n+=row[g]??0;}
-        return n;
-      })();
-
-      const adBoostRate = Math.min(0.20, adMonthly/1000000);
-      const mixTotal    = eatInPct+takeoutPct+retailPct;
-
-      const applyPreset = (p) => {
-        setShopId(p.id); setUnitPrice(p.unitPrice); setEatInPct(p.eatIn); setTakeoutPct(p.takeout);
-        setRetailPct(p.retail); setUsageRate(p.usageRate); setAnnVisits(p.annualVisits);
-        setCostRate(p.costRate); setTargetAges(p.targetAge); setTargetG(p.targetGender);
-        setSeats(p.seats); setTurnover(p.turnover); setRepeatRate(p.repeatRate);
-        setOpeningCost(p.openingCost);
-      };
+      document.getElementById('preview-fixed').innerText = yen(monthlyFixed);
+      document.getElementById('preview-bep').innerText = yen(bepRevenue);
       
-      const handleStation = (s) => {setStation(s);setLocIdx(0);};
-      const toggleAge  = (a) => { setTargetAges(prev=>prev.includes(a)?prev.filter(x=>x!==a):[...prev,a]); };
-      const toggleG    = (g) => { setTargetG(prev=>prev.includes(g)?prev.filter(x=>x!==g):[...prev,g]); };
+      const pop = updateTargetPopulation();
+      const fermi = pop * (params.usageRate/100) * params.annualVisits * params.unitPrice * (params.shareRate/100) * locData.footfall;
+      document.getElementById('preview-fermi').innerText = yen(fermi);
 
-      const clearHistory = () => { setHistory([]); setResults(null); };
+      const mixTotal = params.eatIn + params.takeout + params.retail;
+      document.getElementById('mix-error').style.display = mixTotal === 100 ? 'none' : 'block';
+    }
 
-      const runSim = useCallback(() => {
-        if(mixTotal!==100) return;
-        setRunning(true);
-        
-        const p = {unitPrice,usageRate,annualVisits,costRate,shareRate,staffCount,hourlyWage,hoursPerDay,adMonthly,miscMonthly,repeatRate};
-        
-        setTimeout(()=>{
-          const months=[];
-          let m=startMonth;
-          while(true){
-            months.push(simulateMonth(m,locData,p,adBoostRate));
-            if(m===endMonth)break;
-            m=m%12+1;
-            if(months.length>24)break;
-          }
+    // シミュレーション計算コアエンジン
+    function executeSimulation() {
+      if((params.eatIn + params.takeout + params.retail) !== 100) return;
+      
+      const locData = LOCATIONS[currentStation][currentLocIdx];
+      const adBoostRate = Math.min(0.20, params.adMonthly / 1000000);
+      const rb = 1 + (params.repeatRate / 100) * 0.15;
+      const months = [];
+      
+      // 4月〜9月を固定シミュレート
+      for (let m = 4; m <= 9; m++) {
+        const wt = MONTHLY_WEATHER[m];
+        const days = 30; // 固定計算用
+        let totalRev = 0, totalCust = 0;
+        const dailyLogs = [];
+
+        for (let d = 1; d <= days; d++) {
+          const roll = Math.random();
+          let wMod, wKey;
+          if      (roll < wt.sunny) wKey="sunny", wMod=1.0;
+          else if (roll < wt.sunny+wt.cloudy) wKey="cloudy", wMod=0.88;
+          else if (roll < wt.sunny+wt.cloudy+wt.rain) wKey="rain", wMod=locData.rainResist;
+          else wKey="extreme", wMod=0.72;
+
+          const noise = 0.85 + (Math.random() * 0.30); // 日々のバラつきノイズ
+          const base = (params.unitPrice * (params.usageRate/100) * params.annualVisits * (params.shareRate/100)) / 365;
           
-          const newRun = {
-            id: Date.now(),
-            title: `施策パターン ${history.length + 1}`,
-            params: p,
-            months: months
-          };
+          const dailyRev = base * locData.footfall * wMod * wt.tempMod * (1+adBoostRate) * rb * noise;
+          const dailyCust = Math.round(dailyRev / params.unitPrice);
           
-          setHistory(prev => [...prev, newRun]);
-          setResults(months);
-          setRunning(false);
-          setTab("result");
-        }, 400);
-      },[locData,unitPrice,usageRate,annualVisits,costRate,shareRate,staffCount,hourlyWage,hoursPerDay,adMonthly,miscMonthly,repeatRate,adBoostRate,startMonth,endMonth,mixTotal,history]);
+          totalRev += dailyRev;
+          totalCust += dailyCust;
+          dailyLogs.push({ day: d, weather: wKey, cust: dailyCust });
+        }
 
-      const totalRevenue = results?results.reduce((s,r)=>s+r.totalRev,0):0;
-      const totalProfit  = results?results.reduce((s,r)=>s+r.profit,0):0;
+        const fixedRent  = locData.rentBase * 10000;
+        const fixedLabor = params.staffCount * params.hourlyWage * params.hoursPerDay * days;
+        const varCogs    = totalRev * (params.costRate/100);
+        const profit     = totalRev - fixedRent - fixedLabor - varCogs - params.adMonthly - params.miscMonthly;
+
+        months.push({ monthName: `${m}月`, totalRev, totalCust, profit, dailyLogs });
+      }
+
+      const newRun = {
+        id: Date.now(),
+        title: `施策パターン ${history.length + 1}`,
+        months: months,
+        totalRev: months.reduce((s,r)=>s+r.totalRev,0),
+        totalProfit: months.reduce((s,r)=>s+r.profit,0)
+      };
+
+      history.push(newRun);
+      renderResults(newRun);
+      switchTab('result');
       
-      return (
-        <div style={{fontFamily:"'Noto Sans JP','Hiragino Sans',sans-serif",minHeight:"100vh",background:"#080e1a",color:"#e2e8f0",paddingBottom:60}}>
-          <div style={{background:"#0d1526",borderBottom:"1px solid #1a2540",padding:"22px 16px 16px",textAlign:"center"}}>
-            <div style={{fontSize:9,letterSpacing:5,color:"#3a4a6b",marginBottom:4}}>CHŪŌ LINE BUSINESS SIMULATOR</div>
-            <h1 style={{margin:0,fontSize:22,fontWeight:900,background:"linear-gradient(90deg,#fb923c,#f43f5e,#a855f7)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>
-              中央線 出店シミュレーター
-            </h1>
-          </div>
-
-          <div style={{display:"flex",background:"#0d1526",borderBottom:"1px solid #1a2540"}}>
-            {[["setup","⚙️ 設定"],["result","📊 結果・検定"]].map(([key,label])=>(
-              <button key={key} onClick={()=>setTab(key)} style={{
-                flex:1,padding:"11px 0",border:"none",cursor:"pointer",fontSize:13,fontWeight:700,
-                background:"transparent",color:tab===key?"#fb923c":"#334155",
-                borderBottom:tab===key?"2px solid #fb923c":"2px solid transparent",transition:"all .15s",
-              }}>{label} {key==="result" && history.length>0 && `(${history.length})`}</button>
-            ))}
-          </div>
-
-          <div style={{maxWidth:740,margin:"0 auto",padding:"0 13px"}}>
-
-          {tab==="setup" && <>
-            {history.length > 0 && (
-              <div style={{marginTop:15, padding:"10px", background:"#1a2540", borderRadius:8, fontSize:12, display:"flex", justifyContent:"space-between", alignItems:"center"}}>
-                <span>現在 <strong>{history.length}回</strong> の履歴があります。条件を変えて実行するとA/B比較ができます。</span>
-                <button onClick={clearHistory} style={{background:"#f43f5e", color:"#fff", border:"none", borderRadius:4, padding:"4px 8px", cursor:"pointer", fontSize:11}}>履歴リセット</button>
-              </div>
-            )}
-
-            <Sec title="エリアを選ぶ">
-              <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
-                {Object.keys(LOCATIONS).map(s=>(
-                  <Pill key={s} active={station===s} onClick={()=>handleStation(s)}>{s}</Pill>
-                ))}
-              </div>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(170px,1fr))",gap:7}}>
-                {locOptions.map((loc,i)=>(
-                  <button key={loc.id} onClick={()=>{setLocIdx(i);}} style={{
-                    padding:"11px 11px",borderRadius:11,border:`2px solid ${locIdx===i?"#f43f5e":"#182030"}`,
-                    background:locIdx===i?"#2d1224":"#0f1825",color:locIdx===i?"#fda4af":"#4a5568",
-                    cursor:"pointer",textAlign:"left",transition:"all .15s",
-                  }}>
-                    <div style={{fontWeight:800,fontSize:12,marginBottom:2}}>{loc.name}</div>
-                    <div style={{fontSize:10,color:locIdx===i?"#f87171":"#334155"}}>家賃 {loc.rentBase}万円/月</div>
-                    <div style={{fontSize:10,color:locIdx===i?"#fecdd3":"#2d3748",marginTop:3,lineHeight:1.5}}>{loc.note}</div>
-                  </button>
-                ))}
-              </div>
-            </Sec>
-
-            <Sec title="業種を選ぶ">
-              <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:6}}>
-                {SHOP_PRESETS.map(s=>(
-                  <button key={s.id} onClick={()=>applyPreset(s)} style={{
-                    padding:"8px 3px",borderRadius:10,border:`2px solid ${shopId===s.id?"#a855f7":"#182030"}`,
-                    background:shopId===s.id?"#1a0d2e":"#0f1825",
-                    color:shopId===s.id?"#d8b4fe":"#4a5568",
-                    cursor:"pointer",textAlign:"center",fontSize:11,fontWeight:700,transition:"all .15s",
-                  }}>
-                    <div style={{fontSize:18,marginBottom:1}}>{s.name.split(" ")[0]}</div>
-                    <div style={{fontSize:9,lineHeight:1.3}}>{s.name.split(" ").slice(1).join(" ")}</div>
-                  </button>
-                ))}
-              </div>
-            </Sec>
-
-            <Sec title="売上構成 & 単価">
-              <div style={{marginBottom:12}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-                  <span style={{fontSize:11,color:"#64748b"}}>平均客単価</span>
-                  <span style={{fontSize:20,fontWeight:900,color:"#fb923c"}}>¥{unitPrice.toLocaleString()}</span>
-                </div>
-                <input type="range" min={100} max={20000} step={100} value={unitPrice}
-                  onChange={e=>{setUnitPrice(+e.target.value);}}
-                  style={{width:"100%",accentColor:"#fb923c",cursor:"pointer"}}/>
-              </div>
-
-              <div style={{display:"flex",height:14,borderRadius:6,overflow:"hidden",marginBottom:10,gap:1}}>
-                {[{p:eatInPct,c:"#fb923c"},{p:takeoutPct,c:"#38bdf8"},{p:retailPct,c:"#a855f7"}].map((x,i)=>(
-                  x.p>0&&<div key={i} style={{flex:x.p,background:x.c,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:"#000"}}>{x.p>10?x.p+"%":""}</div>
-                ))}
-              </div>
-
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
-                {[
-                  {label:"🍽️ イートイン",val:eatInPct,  set:setEatInPct,  color:"#fb923c"},
-                  {label:"🥡 テイクアウト",val:takeoutPct,set:setTakeoutPct,color:"#38bdf8"},
-                  {label:"🛍️ 物販",       val:retailPct, set:setRetailPct, color:"#a855f7"},
-                ].map(({label,val,set,color})=>(
-                  <div key={label} style={{background:"#0f1825",borderRadius:9,padding:"9px 9px",border:`1px solid ${color}25`}}>
-                    <div style={{fontSize:10,color:"#64748b",marginBottom:5}}>{label}</div>
-                    <NumIn value={val} unit="%" min={0} max={100} color={color} onChange={v=>{set(v);}}/>
-                  </div>
-                ))}
-              </div>
-            </Sec>
-
-            <Sec title="コスト設定">
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:9}}>
-                <CostCard label="原価率" value={costRate} unit="%" min={5} max={90} color={costRate>65?"#f43f5e":costRate<40?"#34d399":"#fb923c"} onChange={v=>{setCostRate(v);}}/>
-                <CostCard label="スタッフ時給" value={hourlyWage} unit="円" min={950} max={3000} color="#a855f7" onChange={v=>{setHourlyWage(v);}}/>
-                <CostCard label="1日の労働時間合計" value={hoursPerDay} unit="h" min={1} max={18} color="#a855f7" onChange={v=>{setHoursPerDay(v);}}/>
-                <CostCard label="スタッフ数" value={staffCount} unit="人" min={1} max={15} color="#a855f7" onChange={v=>{setStaffCount(v);}}/>
-                <CostCard label="月次広告費" value={adMonthly} unit="円" min={0} max={500000} step={5000} color="#34d399" onChange={v=>{setAdMonthly(v);}} note={`集客 +${(adBoostRate*100).toFixed(1)}% ブースト`}/>
-                <CostCard label="水道光熱費・雑費" value={miscMonthly} unit="円" min={0} max={200000} step={5000} color="#38bdf8" onChange={v=>{setMiscMonthly(v);}}/>
-              </div>
-            </Sec>
-
-            <Sec title="フェルミ推計パラメータ">
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:9}}>
-                {[
-                  {label:"利用率",         val:usageRate,   set:setUsageRate,  unit:"%", max:100},
-                  {label:"年間利用回数",   val:annualVisits,set:setAnnVisits,  unit:"回",max:120},
-                  {label:"市場シェア",     val:shareRate,   set:setShareRate,  unit:"%", max:30},
-                ].map(({label,val,set,unit,max})=>(
-                  <div key={label} style={{background:"#0f1825",borderRadius:9,padding:"10px 10px"}}>
-                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-                      <span style={{fontSize:10,color:"#64748b"}}>{label}</span>
-                      <span style={{fontWeight:900,color:"#fb923c"}}>{val}{unit}</span>
-                    </div>
-                    <input type="range" min={1} max={max} value={val} onChange={e=>{set(+e.target.value);}} style={{width:"100%",accentColor:"#fb923c"}}/>
-                  </div>
-                ))}
-              </div>
-            </Sec>
-
-            <button onClick={runSim} disabled={running||mixTotal!==100} style={{
-              width:"100%",padding:"15px",marginTop:20,borderRadius:13,border:"none",
-              background:running||mixTotal!==100?"#1a1a2e":"linear-gradient(90deg,#fb923c,#f43f5e,#a855f7)",
-              color:mixTotal!==100?"#334155":"#fff",
-              fontSize:15,fontWeight:900,cursor:running||mixTotal!==100?"not-allowed":"pointer",
-              boxShadow:running||mixTotal!==100?"none":"0 0 20px #f43f5e50",transition:"all .2s",
-            }}>
-              {running?"⏳ 計算中...":`▶ 施策パターン${history.length + 1} として実行`}
-            </button>
-          </>}
-
-          {tab==="result" && !results && (
-            <div style={{textAlign:"center",padding:"48px 0",color:"#334155",fontSize:13}}>
-              設定タブで「実行」を押してください
-            </div>
-          )}
-
-          {tab==="result" && results && (
-            <div style={{marginTop:18}}>
-              <div style={{fontSize:16, fontWeight:800, marginBottom:10, color:"#e2e8f0"}}>
-                📊 {history[history.length-1].title} のサマリー
-              </div>
-
-              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:12}}>
-                {[
-                  {label:"期間売上合計",  val:totalRevenue,            color:"#fb923c"},
-                  {label:"期間利益合計",  val:totalProfit,             color:totalProfit>=0?"#34d399":"#f43f5e"},
-                  {label:"月平均利益",    val:totalProfit/results.length,color:totalProfit>=0?"#34d399":"#f43f5e"},
-                ].map(({label,val,color})=>(
-                  <div key={label} style={{background:"#0f1825",borderRadius:12,padding:"12px 10px",borderTop:`3px solid ${color}`}}>
-                    <div style={{fontSize:9,color:"#475569",marginBottom:3}}>{label}</div>
-                    <div style={{fontSize:15,fontWeight:900,color}}>{yen(val)}</div>
-                  </div>
-                ))}
-              </div>
-
-              <Sec title="🔬 検定用データ：最初の7日間のテスト営業（生データ）">
-                <div style={{background:"#0f1825", borderRadius:13, padding:"16px 12px", marginBottom:10}}>
-                  <p style={{fontSize:11, color:"#94a3b8", marginTop:0, marginBottom:10, lineHeight:1.6}}>
-                    全体の平均を見るだけでなく、日々の客数のバラつき（乱数によるノイズ）を比較します。<br/>
-                    {history.length >= 2 ? "直近の2つの施策を比較して、「差が偶然かどうか」を検定しましょう。" : "条件を変えてもう一度シミュレーションを実行すると、前のデータと横並びで比較できます。"}
-                  </p>
-
-                  {history.length >= 2 ? (
-                    <div style={{overflowX:"auto"}}>
-                      <table style={{width:"100%",borderCollapse:"collapse",fontSize:11, textAlign:"center"}}>
-                        <thead>
-                          <tr style={{borderBottom:"2px solid #1a2540"}}>
-                            <th style={{padding:"8px 4px",color:"#64748b"}}>日</th>
-                            <th style={{padding:"8px 4px",color:"#94a3b8", background:"#1e293b", borderRadius:"6px 0 0 0"}}>天気 (A)</th>
-                            <th style={{padding:"8px 4px",color:"#fb923c", background:"#1e293b", borderRadius:"0 6px 0 0"}}>客数 (A)<br/><span style={{fontSize:9,fontWeight:400}}>{history[history.length-2].title}</span></th>
-                            <th style={{padding:"8px 4px"}}></th>
-                            <th style={{padding:"8px 4px",color:"#94a3b8", background:"#1e293b", borderRadius:"6px 0 0 0"}}>天気 (B)</th>
-                            <th style={{padding:"8px 4px",color:"#38bdf8", background:"#1e293b", borderRadius:"0 6px 0 0"}}>客数 (B)<br/><span style={{fontSize:9,fontWeight:400}}>{history[history.length-1].title}</span></th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {Array.from({length: 7}).map((_, i) => {
-                            const dataA = history[history.length-2].months[0].dailyLogs[i];
-                            const dataB = history[history.length-1].months[0].dailyLogs[i];
-                            return (
-                              <tr key={i} style={{borderBottom:"1px solid #0d1526"}}>
-                                <td style={{padding:"6px 4px",color:"#475569"}}>{i+1}日目</td>
-                                <td style={{padding:"6px 4px",background:"#0f172a"}}>{W_EMOJI[dataA.weather]}</td>
-                                <td style={{padding:"6px 4px",background:"#0f172a",fontWeight:700,color:"#fb923c"}}>{dataA.cust}人</td>
-                                <td></td>
-                                <td style={{padding:"6px 4px",background:"#0f172a"}}>{W_EMOJI[dataB.weather]}</td>
-                                <td style={{padding:"6px 4px",background:"#0f172a",fontWeight:700,color:"#38bdf8"}}>{dataB.cust}人</td>
-                              </tr>
-                            );
-                          })}
-                          {(() => {
-                            const sumA = history[history.length-2].months[0].dailyLogs.slice(0,7).reduce((s,d)=>s+d.cust,0);
-                            const sumB = history[history.length-1].months[0].dailyLogs.slice(0,7).reduce((s,d)=>s+d.cust,0);
-                            return (
-                              <tr style={{background:"#1a2540", fontWeight:900}}>
-                                <td style={{padding:"8px 4px",color:"#94a3b8"}}>平均</td>
-                                <td></td>
-                                <td style={{padding:"8px 4px",color:"#fb923c"}}>{(sumA/7).toFixed(1)}人</td>
-                                <td></td>
-                                <td></td>
-                                <td style={{padding:"8px 4px",color:"#38bdf8"}}>{(sumB/7).toFixed(1)}人</td>
-                              </tr>
-                            );
-                          })()}
-                        </tbody>
-                      </table>
-                      <div style={{marginTop:12, padding:"12px", background:"#2d1224", borderRadius:8, border:"1px solid #f43f5e", color:"#fda4af", fontSize:12, lineHeight:1.5}}>
-                        <strong>💡 検定ミステリー：</strong><br/>
-                        AとBの平均客数に差が出ました。しかし日々のバラつき（天気など）を見ると、どちらもブレがあります。この差は<strong>「施策Bの効果（有意差あり）」</strong>でしょうか？それとも<strong>「たまたま天気が良かった等の偶然のブレ（有意差なし）」</strong>でしょうか？（t検定を行うと数学的に証明できます）
-                      </div>
-                    </div>
-                  ) : (
-                    <div style={{overflowX:"auto"}}>
-                      <table style={{width:"100%",borderCollapse:"collapse",fontSize:11, textAlign:"center"}}>
-                        <thead>
-                          <tr style={{borderBottom:"2px solid #1a2540"}}>
-                            <th style={{padding:"8px 4px",color:"#64748b"}}>日</th>
-                            <th style={{padding:"8px 4px",color:"#94a3b8"}}>天気</th>
-                            <th style={{padding:"8px 4px",color:"#e2e8f0"}}>客数</th>
-                            <th style={{padding:"8px 4px",color:"#e2e8f0"}}>売上</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {results[0].dailyLogs.slice(0, 7).map((d, i) => (
-                            <tr key={i} style={{borderBottom:"1px solid #0d1526"}}>
-                              <td style={{padding:"6px 4px",color:"#475569"}}>{d.day}日目</td>
-                              <td style={{padding:"6px 4px"}}>{W_EMOJI[d.weather]}</td>
-                              <td style={{padding:"6px 4px",fontWeight:700,color:"#fb923c"}}>{d.cust}人</td>
-                              <td style={{padding:"6px 4px",color:"#94a3b8"}}>{yen(d.rev)}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              </Sec>
-
-              <button onClick={()=>setTab("setup")} style={{
-                width:"100%",padding:"12px",borderRadius:12,border:"1px solid #1a2540",
-                background:"transparent",color:"#475569",cursor:"pointer",fontSize:13,fontWeight:700,
-                marginTop:10
-              }}>← 設定を変更して「施策パターン{history.length + 1}」を作成する</button>
-
-            </div>
-          )}
-          </div>
-        </div>
-      );
+      // 履歴アラートの更新
+      document.getElementById('history-alert').style.display = 'flex';
+      document.getElementById('alert-count').innerText = history.length + "回";
+      document.getElementById('history-count').innerText = `(${history.length})`;
     }
 
-    // ── 子コンポーネント ──────────────────────────────────────────────
-    function NumIn({value,unit,min,max,color,onChange}) {
-      const [raw,setRaw]=useState(String(value));
-      useEffect(() => { setRaw(String(value)); }, [value]);
-      const handleChange=(e)=>{
-        const s=e.target.value; setRaw(s); const n=parseFloat(s);
-        if(!isNaN(n)&&n>=min&&n<=max) onChange(n);
-      };
-      const handleBlur=()=>{
-        const n=parseFloat(raw);
-        if(isNaN(n)||n<min){setRaw(String(min));onChange(min);}
-        else if(n>max){setRaw(String(max));onChange(max);}
-        else{setRaw(String(n));onChange(n);}
-      };
-      return (
-        <div style={{display:"flex",alignItems:"center",gap:4}}>
-          <input type="text" inputMode="numeric" value={raw} onChange={handleChange} onBlur={handleBlur} style={{width:"100%",background:"transparent",border:"none",color,fontSize:20,fontWeight:900,outline:"none"}}/>
-          <span style={{color:"#475569",fontSize:12}}>{unit}</span>
-        </div>
-      );
+    function renderResults(run) {
+      document.getElementById('result-title').innerText = `📊 ${run.title} の結果サマリー`;
+      document.getElementById('res-totalRev').innerText = yen(run.totalRev);
+      
+      const pEl = document.getElementById('res-totalProfit');
+      const apEl = document.getElementById('res-avgProfit');
+      pEl.innerText = yen(run.totalProfit);
+      apEl.innerText = yen(run.totalProfit / 6);
+      
+      const color = run.totalProfit >= 0 ? '#34d399' : '#f43f5e';
+      document.getElementById('card-profit').style.borderTopColor = color;
+      pEl.style.color = color;
+      document.getElementById('card-avg-profit').style.borderTopColor = color;
+      apEl.style.color = color;
+
+      // 検定用テーブルの構築
+      let tableHtml = '';
+      if (history.length >= 2) {
+        const runA = history[history.length - 2];
+        const runB = history[history.length - 1];
+        
+        let rows = '';
+        let sumA = 0, sumB = 0;
+        for(let i=0; i<7; i++) {
+          const dA = runA.months[0].dailyLogs[i];
+          const dB = runB.months[0].dailyLogs[i];
+          sumA += dA.cust; sumB += dB.cust;
+          rows += `
+            <tr style="border-bottom:1px solid #0d1526;">
+              <td style="color:#475569;">${i+1}日目</td>
+              <td style="background:#0f172a;">${W_EMOJI[dA.weather]}</td>
+              <td style="background:#0f172a; font-weight:700; color:#fb923c;">${dA.cust}人</td>
+              <td></td>
+              <td style="background:#0f172a;">${W_EMOJI[dB.weather]}</td>
+              <td style="background:#0f172a; font-weight:700; color:#38bdf8;">${dB.cust}人</td>
+            </tr>`;
+        }
+        
+        tableHtml = `
+          <table>
+            <thead>
+              <tr style="border-bottom:2px solid #1a2540;">
+                <th>日</th>
+                <th style="background:#1e293b; color:#94a3b8; border-radius:6px 0 0 0;">天気 (A)</th>
+                <th style="background:#1e293b; color:#fb923c; border-radius:0 6px 0 0;">客数 (A)<br><span style="font-size:9px; font-weight:400;">${runA.title}</span></th>
+                <th></th>
+                <th style="background:#1e293b; color:#94a3b8; border-radius:6px 0 0 0;">天気 (B)</th>
+                <th style="background:#1e293b; color:#38bdf8; border-radius:0 6px 0 0;">客数 (B)<br><span style="font-size:9px; font-weight:400;">${runB.title}</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows}
+              <tr style="background:#1a2540; font-weight:900;">
+                <td style="color:#94a3b8;">7日間平均</td>
+                <td></td><td style="color:#fb923c;">${(sumA/7).toFixed(1)}人</td>
+                <td></td><td></td><td style="color:#38bdf8;">${(sumB/7).toFixed(1)}人</td>
+              </tr>
+            </tbody>
+          </table>
+          <div style="margin-top:12px; padding:12px; background:#2d1224; border-radius:8px; border:1px solid #f43f5e; color:#fda4af; font-size:12px; lineHeight:1.5; text-align:left;">
+            <strong>💡 検定ミステリー：</strong><br>
+            AとBの平均客数に差が出ました。しかし日々のバラつきを見ると、どちらもブレがあります。この差は<strong>「施策Bの効果（有意差あり）」</strong>でしょうか？それとも<strong>「たまたま天気が良かった等の偶然のブレ（有意差なし）」</strong>でしょうか？（t検定を行うと数学的に証明できます）
+          </div>`;
+      } else {
+        let rows = '';
+        for(let i=0; i<7; i++) {
+          const d = run.months[0].dailyLogs[i];
+          rows += `
+            <tr style="border-bottom:1px solid #0d1526;">
+              <td style="color:#475569;">${i+1}日目</td>
+              <td>${W_EMOJI[d.weather]}</td>
+              <td style="font-weight:700; color:#fb923c;">${d.cust}人</td>
+              <td style="color:#94a3b8;">${yen(d.cust * params.unitPrice)}</td>
+            </tr>`;
+        }
+        tableHtml = `
+          <table>
+            <thead>
+              <tr style="border-bottom:2px solid #1a2540;">
+                <th>日</th><th>天気</th><th>客数</th><th>売上</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>`;
+      }
+      document.getElementById('test-data-container').innerHTML = tableHtml;
     }
 
-    function CostCard({label,value,unit,min,max,step=1,color,onChange,note}) {
-      return (
-        <div style={{background:"#0f1825",borderRadius:10,padding:"10px 11px"}}>
-          <div style={{fontSize:10,color:"#64748b",marginBottom:5}}>{label}</div>
-          <NumIn value={value} unit={unit} min={min} max={max} color={color} onChange={onChange}/>
-          {note&&<div style={{fontSize:9,color:"#334155",marginTop:3}}>{note}</div>}
-        </div>
-      );
+    function switchTab(tab) {
+      document.getElementById('panel-setup').style.display = tab === 'setup' ? 'block' : 'none';
+      document.getElementById('panel-result').style.display = tab === 'result' ? 'block' : 'none';
+      
+      const sBtn = document.getElementById('btn-tab-setup');
+      const rBtn = document.getElementById('btn-tab-result');
+      if (tab === 'setup') {
+        sBtn.style.color = '#fb923c'; sBtn.style.borderBottomColor = '#fb923c';
+        rBtn.style.color = '#334155'; rBtn.style.borderBottomColor = 'transparent';
+      } else {
+        rBtn.style.color = '#fb923c'; rBtn.style.borderBottomColor = '#fb923c';
+        sBtn.style.color = '#334155'; sBtn.style.borderBottomColor = 'transparent';
+      }
     }
 
-    function Sec({title,children}) {
-      return (
-        <div style={{marginTop:22}}>
-          <div style={{fontSize:9,letterSpacing:3,color:"#334155",marginBottom:9,textTransform:"uppercase"}}>{title}</div>
-          {children}
-        </div>
-      );
+    function clearHistory() {
+      history = [];
+      document.getElementById('history-alert').style.display = 'none';
+      document.getElementById('history-count').innerText = '';
+      switchTab('setup');
     }
-
-    function Pill({active,onClick,children}) {
-      return (
-        <button onClick={onClick} style={{
-          padding:"6px 15px",borderRadius:999,border:"none",cursor:"pointer",fontSize:12,fontWeight:700,
-          background:active?"linear-gradient(90deg,#fb923c,#f43f5e)":"#0f1825",
-          color:active?"#fff":"#334155",boxShadow:active?"0 0 12px #f43f5e40":"none",transition:"all .15s",
-        }}>{children}</button>
-      );
-    }
-
-    // ── Reactの描画実行（これが抜けていました！） ─────────────────────
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<ShopSim />);
   </script>
 </body>
 </html>
