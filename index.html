@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>中央線 出店シミュレーター Ver.6</title>
+  <title>中央線 出店シミュレーター Ver.6.1</title>
   <style>
     body { margin: 0; background: #070e1c; color: #dce8f5; font-family: sans-serif; padding-bottom: 50px; }
     .container { max-width: 600px; margin: 0 auto; padding: 15px; }
@@ -19,7 +19,7 @@
     .input-group input, .input-group select { background: #070e1c; color: #fb923c; border: 1px solid #1a2b42; padding: 8px; border-radius: 5px; font-size: 16px; font-weight: bold; width: 100%; box-sizing: border-box; outline: none; }
     
     table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 10px; white-space: nowrap; }
-    th, td { padding: 6px 4px; text-align: right; border-bottom: 1px solid #1a2b42; }
+    th, td { padding: 8px 4px; text-align: right; border-bottom: 1px solid #1a2b42; }
     th { color: #8ba3c7; font-weight: normal; background: #070e1c; }
     .hidden { display: none !important; }
     
@@ -33,7 +33,6 @@
     .inner-table { width: 100%; margin-top: 5px; margin-bottom: 5px; border: 1px solid #1a2b42; }
     .inner-table th, .inner-table td { font-size: 10px; padding: 4px; background: #070e1c; border: 1px solid #1a2b42; text-align: center; }
     
-    /* 🆕 感度分析バー用 */
     .sensitivity-row { margin-bottom: 8px; }
     .sensitivity-bar-container { background: #070e1c; border-radius: 4px; height: 12px; width: 100%; margin-top: 2px; }
     .sensitivity-bar { background: linear-gradient(90deg, #38bdf8, #a855f7); height: 100%; border-radius: 4px; transition: width 0.5s; }
@@ -41,7 +40,7 @@
 </head>
 <body>
   <div class="container">
-    <h2 class="title">中央線 出店シミュレーター <span style="font-size:14px; color:#fb923c;">Ver.6</span></h2>
+    <h2 class="title">中央線 出店シミュレーター <span style="font-size:14px; color:#fb923c;">Ver.6.1</span></h2>
     
     <div class="grid" style="margin-bottom: 20px;">
       <button id="btn-tab-setup" class="btn btn-primary" onclick="switchTab('setup')">⚙️ 設定</button>
@@ -203,6 +202,7 @@
 
           if (d <= openDays) {
             if (isWk) weekendSales.push(dRev); else weekdaySales.push(dRev);
+            // 🚨バ益バグ修正：vCogs(原価)をしっかり差し引き
             const dProfit = dRev - (dRev * (cr / 100) + (staff * wage * hrs)) - dayFixedCost;
             if (isRain) { if (dProfit >= 0) crossTable.rainBlack++; else crossTable.rainRed++; } 
             else { if (dProfit >= 0) crossTable.sunnyBlack++; else crossTable.sunnyRed++; }
@@ -216,7 +216,8 @@
         const fRent = loc.rent * 10000;
         const fLabor = staff * wage * hrs * openDays;
         const vCogs = mRev * (cr/100);
-        const mProfit = mRev - fRent - fLabor - fixed - ad;
+        // 🚨バ益バグ修正：ここでもvCogsをしっかり引く
+        const mProfit = mRev - fRent - fLabor - fixed - ad - vCogs;
 
         totalRev += mRev; totalEI += finalEI; totalTO += finalTO; totalRE += finalRE; totalProfit += mProfit;
         totalCogs += vCogs; totalLabor += fLabor;
@@ -224,40 +225,29 @@
         tableHTML += `<tr style="border-bottom: 1px solid #152040;"><td style="text-align:center; color:#fff;"><strong>${m}月</strong><br><span style="font-size:9px;color:#8ba3c7">${mData.temp}</span></td><td style="text-align:center; font-size:10px;">☀️${days - rainDays}日<br>☔️${rainDays}日</td><td style="color:#fb923c; font-weight:bold;">${yen(mRev)}</td><td>${yen(vCogs)}</td><td>${yen(fLabor)}</td><td style="font-weight:bold; color:${mProfit >= 0 ? "#34d399" : "#f43f5e"};">${yen(mProfit)}</td></tr>`;
       });
 
-      // ── 🆕 【追加機能3：損益分岐点(BEP)客数の自動逆算】 ──
+      // ── 【損益分岐点(BEP)客数の自動逆算】 ──
       const mCount = monthsToRun.length;
       const totalFixedCostNoLabor = (loc.rent * 10000 + fixed + ad) * mCount;
-      const grandTotalFixedCost = totalFixedCostNoLabor + totalLabor; // 人件費を営業日固定費として扱う
+      const grandTotalFixedCost = totalFixedCostNoLabor + totalLabor; 
       const bepRevenue = grandTotalFixedCost / (1 - (cr / 100));
       const bepTotalCustomers = bepRevenue / price;
       const bepMonthlyCustomers = bepTotalCustomers / mCount;
       const bepDailyCustomers = bepMonthlyCustomers / openDays;
 
-      // ── 🆕 【追加機能2：パラメータ感度分析（確定データベース）】 ──
-      // 各要素を10%「改善」した時の期間総利益の増加分を算出
-      const currentProfit = totalProfit;
+      // ── 🆕【パラメータ感度分析のロジック完全修正】 ──
       const totalRentCost = (loc.rent * 10000) * mCount;
       const totalOtherFixed = fixed * mCount;
-      const totalAdCost = ad * mCount;
 
-      // ① 客数+10%（売上と原価が1.1倍、人件費・固定費はそのまま）
-      const pCust = (totalRev * 1.1) - (totalCogs * 1.1) - totalLabor - totalRentCost - totalOtherFixed - totalAdCost;
-      const impCust = Math.max(0, pCust - currentProfit);
+      // 各要素を10%改善（売上・客数アップ、またはコスト削減）した時の「純利益のダイレクトな増加額」
+      const impPrice = totalRev * 0.1;                       // 客単価を10%上げた時
+      const impCust  = (totalRev - totalCogs) * 0.1;          // 客数を10%増やした時
+      const impCr    = totalCogs * 0.1;                       // 原価を10%削減した時
+      const impWage  = totalLabor * 0.1;                      // 人件費を10%削減した時
+      const impRent  = totalRentCost * 0.1;                   // 🆕 家賃を10%削減した時
+      const impFixed = totalOtherFixed * 0.1;                 // 🆕 固定費を10%削減した時
 
-      // ② 客単価+10%（客数・仕入総額一定の純粋な値上げ：売上1.1倍、原価はそのまま）
-      const pPrice = (totalRev * 1.1) - totalCogs - totalLabor - totalRentCost - totalOtherFixed - totalAdCost;
-      const impPrice = Math.max(0, pPrice - currentProfit);
-
-      // ③ 原価率10%削減（原価総額が0.9倍、売上はそのまま）
-      const pCr = totalRev - (totalCogs * 0.9) - totalLabor - totalRentCost - totalOtherFixed - totalAdCost;
-      const impCr = Math.max(0, pCr - currentProfit);
-
-      // ④ 時給(人件費)10%削減（人件費総額が0.9倍）
-      const pWage = totalRev - totalCogs - (totalLabor * 0.9) - totalRentCost - totalOtherFixed - totalAdCost;
-      const impWage = Math.max(0, pWage - currentProfit);
-
-      // グラフ描画用の最大値を計算
-      const maxImpact = Math.max(impCust, impPrice, impCr, impWage, 1);
+      // グラフの最長幅の基準値
+      const maxImpact = Math.max(impPrice, impCust, impCr, impWage, impRent, impFixed, 1);
 
       // ── 統計検定セクションのHTML作成 ──
       const s1 = getStats(weekdaySales); const s2 = getStats(weekendSales);
@@ -301,9 +291,6 @@
       }
 
       const totalColor = totalProfit >= 0 ? "#34d399" : "#f43f5e";
-      const displayBoost = (adBoost * 100).toFixed(0);
-
-      // 現在の客数とBEP客数の比較判定
       const custDiff = boostedCust - bepMonthlyCustomers;
       const bepStatusHTML = custDiff >= 0 
         ? `<span style="color:#34d399; font-weight:bold;">黒字圏内 (必要数に対し +${Math.round(custDiff)}人/月の余裕)</span>`
@@ -312,7 +299,7 @@
       el("result-content").innerHTML = `
         <div class="grid" style="margin-bottom:15px;">
           <div class="card" style="margin:0; border-top:3px solid #fb923c;">
-            <div style="font-size:11px; color:#8ba3c7;">期間売上合計 (${monthsToRun.length}ヶ月 / 広告ブースト: +${displayBoost}%)</div>
+            <div style="font-size:11px; color:#8ba3c7;">期間売上合計 (${monthsToRun.length}ヶ月 / 広告補正込客数: ${Math.round(boostedCust)}人)</div>
             <div style="font-size:18px; font-weight:bold; color:#fb923c;">${yen(totalRev)}</div>
             <div style="font-size:10px; color:#8ba3c7; margin-top:8px; border-top:1px dashed #1a2b42; padding-top:6px; line-height:1.4;">
               🍽️イートイン: ${yen(totalEI)} (${eiPct}%)<br>🥡テイクアウト: ${yen(totalTO)} (${toPct}%)<br>🛍️物販売上: ${yen(totalRE)} (${rePct}%)
@@ -334,11 +321,11 @@
         </div>
 
         <div class="card">
-          <div style="font-size:12px; color:#8ba3c7; margin-bottom:8px;">📊 パラメータ感度分析（どこを改善すれば一番儲かるか）</div>
-          <div style="font-size:10px; color:#64748b; margin-bottom:10px;">各要素を10%改善（向上・削減）させた時の、期間利益の「増加額」の比較ランキングです。</div>
+          <div style="font-size:12px; color:#8ba3c7; margin-bottom:8px;">📊 パラメータ感度分析（改善時の利益インパクト）</div>
+          <div style="font-size:10px; color:#64748b; margin-bottom:10px;">各要素を10%改善させた時の利益増加額です。立地や人件費の設定によってバーの順位が激しく入れ替わります。</div>
           
           <div class="sensitivity-row">
-            <div style="display:flex; justify-content:space-between; font-size:11px;"><span>📈 客単価を10%上げる (値上げ効果)</span><strong style="color:#34d399;">+${yen(impPrice)}</strong></div>
+            <div style="display:flex; justify-content:space-between; font-size:11px;"><span>📈 客単価を10%上げる (単価アップ)</span><strong style="color:#34d399;">+${yen(impPrice)}</strong></div>
             <div class="sensitivity-bar-container"><div class="sensitivity-bar" style="width: ${(impPrice / maxImpact) * 100}%;"></div></div>
           </div>
           <div class="sensitivity-row">
@@ -346,12 +333,20 @@
             <div class="sensitivity-bar-container"><div class="sensitivity-bar" style="width: ${(impCust / maxImpact) * 100}%;"></div></div>
           </div>
           <div class="sensitivity-row">
-            <div style="display:flex; justify-content:space-between; font-size:11px;"><span>📉 原価率を10%下げる (仕入・ロス削減)</span><strong style="color:#34d399;">+${yen(impCr)}</strong></div>
+            <div style="display:flex; justify-content:space-between; font-size:11px;"><span>📉 原価率を10%下げる (仕入改善)</span><strong style="color:#34d399;">+${yen(impCr)}</strong></div>
             <div class="sensitivity-bar-container"><div class="sensitivity-bar" style="width: ${(impCr / maxImpact) * 100}%;"></div></div>
           </div>
           <div class="sensitivity-row">
             <div style="display:flex; justify-content:space-between; font-size:11px;"><span>✂️ 時給(人件費)を10%削る (シフト効率化)</span><strong style="color:#34d399;">+${yen(impWage)}</strong></div>
             <div class="sensitivity-bar-container"><div class="sensitivity-bar" style="width: ${(impWage / maxImpact) * 100}%;"></div></div>
+          </div>
+          <div class="sensitivity-row">
+            <div style="display:flex; justify-content:space-between; font-size:11px;"><span>🏠 家賃を10%下げる (割安物件の交渉効果)</span><strong style="color:#34d399;">+${yen(impRent)}</strong></div>
+            <div class="sensitivity-bar-container"><div class="sensitivity-bar" style="width: ${(impRent / maxImpact) * 100}%;"></div></div>
+          </div>
+          <div class="sensitivity-row">
+            <div style="display:flex; justify-content:space-between; font-size:11px;"><span>📦 その他固定費を10%下げる (節電・経費削減)</span><strong style="color:#34d399;">+${yen(impFixed)}</strong></div>
+            <div class="sensitivity-bar-container"><div class="sensitivity-bar" style="width: ${(impFixed / maxImpact) * 100}%;"></div></div>
           </div>
         </div>
 
