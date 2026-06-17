@@ -12,6 +12,23 @@
   <style>
     body { margin: 0; background: #070e1c; color: #dce8f5; font-family: 'Noto Sans JP', 'Hiragino Sans', sans-serif; }
   </style>
+
+  <script>
+    window.onerror = function(msg, url, line, col, error) {
+      var errDiv = document.createElement('div');
+      errDiv.style.cssText = 'background:#4a0000;color:#ffb3b3;padding:15px;margin:10px;border-left:5px solid #ff4d4d;font-family:monospace;white-space:pre-wrap;word-break:break-all;';
+      errDiv.innerHTML = '<strong>⚠️ 構文エラーが発生しました</strong><br><br>' + msg + '<br>Line: ' + line + ' / Col: ' + col;
+      document.body.prepend(errDiv);
+    };
+    const origError = console.error;
+    console.error = function(...args) {
+      var errDiv = document.createElement('div');
+      errDiv.style.cssText = 'background:#4a0000;color:#ffb3b3;padding:15px;margin:10px;border-left:5px solid #ff4d4d;font-family:monospace;white-space:pre-wrap;word-break:break-all;';
+      errDiv.innerHTML = '<strong>⚠️ React/Babel エラー</strong><br><br>' + args.join(' ');
+      document.body.prepend(errDiv);
+      origError.apply(console, args);
+    };
+  </script>
 </head>
 <body>
   <div id="root"></div>
@@ -19,68 +36,14 @@
   <script type="text/babel">
     const { useState, useCallback } = React;
 
-    const POP = {
-      阿佐ヶ谷:{"10代以下":{女:1200,男:1100},"10代":{女:2600,男:2400},"20代":{女:2000,男:1800},"30代":{女:2200,男:2100},"40代":{女:2300,男:2200},"50代":{女:2000,男:1900},"60代":{女:1500,男:1400}},
-      高円寺:  {"10代以下":{女:1000,男:900}, "10代":{女:2200,男:2100},"20代":{女:2800,男:2700},"30代":{女:2500,男:2400},"40代":{女:2400,男:2300},"50代":{女:1900,男:1800},"60代":{女:1300,男:1200}},
-      荻窪:    {"10代以下":{女:1800,男:1700},"10代":{女:3500,男:3300},"20代":{女:2400,男:2200},"30代":{女:3100,男:2900},"40代":{女:3300,男:3100},"50代":{女:2800,男:2600},"60代":{女:2100,男:1900}},
-      中野:    {"10代以下":{女:2200,男:2100},"10代":{女:5000,男:4800},"20代":{女:6200,男:6000},"30代":{女:5500,男:5300},"40代":{女:5100,男:4900},"50代":{女:4400,男:4200},"60代":{女:3500,男:3200}},
-      吉祥寺:  {"10代以下":{女:2000,男:1900},"10代":{女:4000,男:3800},"20代":{女:4200,男:3900},"30代":{女:4500,男:4100},"40代":{女:4600,男:4200},"50代":{女:3900,男:3600},"60代":{女:2900,男:2600}},
-      西荻窪:  {"10代以下":{女:791,男:762},  "10代":{女:951,男:938}, "20代":{女:2308,男:2007},"30代":{女:2277,男:2017},"40代":{女:2458,男:2124},"50代":{女:2684,男:2194},"60代":{女:1707,男:1625}},
-    };
+    // データ群（文字数削減のため圧縮）
+    const POP={阿佐ヶ谷:{"10代以下":{女:1200,男:1100},"10代":{女:2600,男:2400},"20代":{女:2000,男:1800},"30代":{女:2200,男:2100},"40代":{女:2300,男:2200},"50代":{女:2000,男:1900},"60代":{女:1500,男:1400}},高円寺:{"10代以下":{女:1000,男:900},"10代":{女:2200,男:2100},"20代":{女:2800,男:2700},"30代":{女:2500,男:2400},"40代":{女:2400,男:2300},"50代":{女:1900,男:1800},"60代":{女:1300,男:1200}},荻窪:{"10代以下":{女:1800,男:1700},"10代":{女:3500,男:3300},"20代":{女:2400,男:2200},"30代":{女:3100,男:2900},"40代":{女:3300,男:3100},"50代":{女:2800,男:2600},"60代":{女:2100,男:1900}},中野:{"10代以下":{女:2200,男:2100},"10代":{女:5000,男:4800},"20代":{女:6200,男:6000},"30代":{女:5500,男:5300},"40代":{女:5100,男:4900},"50代":{女:4400,男:4200},"60代":{女:3500,男:3200}},吉祥寺:{"10代以下":{女:2000,男:1900},"10代":{女:4000,男:3800},"20代":{女:4200,男:3900},"30代":{女:4500,男:4100},"40代":{女:4600,男:4200},"50代":{女:3900,男:3600},"60代":{女:2900,男:2600}},西荻窪:{"10代以下":{女:791,男:762},"10代":{女:951,男:938},"20代":{女:2308,男:2007},"30代":{女:2277,男:2017},"40代":{女:2458,男:2124},"50代":{女:2684,男:2194},"60代":{女:1707,男:1625}}};
+    const LOCS={阿佐ヶ谷:[{id:"p",name:"パールセンター商店街",rent:22,ff:1.20,rain:0.95,wk:1.12,note:"雨に強い。地元客。"},{id:"s",name:"スターロード",rent:14,ff:0.75,rain:0.55,wk:1.05,note:"夜型。雨天弱い。"},{id:"j",name:"住宅街",rent:9,ff:0.45,rain:0.70,wk:0.95,note:"固定客。原価率勝負。"}],高円寺:[{id:"ks",name:"高円寺商店街",rent:18,ff:1.10,rain:0.75,wk:1.25,note:"サブカル客。週末強い。"},{id:"kj",name:"住宅街",rent:10,ff:0.55,rain:0.65,wk:0.90,note:"生活密着。常連。"}],荻窪:[{id:"os",name:"駅前商圏",rent:24,ff:1.30,rain:0.80,wk:1.18,note:"ターミナル・乗換客。"},{id:"oj",name:"住宅街",rent:11,ff:0.50,rain:0.68,wk:0.92,note:"ランチ中心。"}],中野:[{id:"nb",name:"ブロードウェイ",rent:26,ff:1.50,rain:0.85,wk:1.30,note:"オタク聖地。集客大。"},{id:"nj",name:"住宅街",rent:13,ff:0.60,rain:0.70,wk:1.00,note:"オフィス客も。"}],吉祥寺:[{id:"ki",name:"井の頭公園",rent:30,ff:1.40,rain:0.65,wk:1.35,note:"おしゃれ激戦区。"},{id:"ks",name:"サンロード",rent:28,ff:1.35,rain:0.88,wk:1.28,note:"雨に強い。回遊客。"},{id:"kj",name:"住宅街",rent:14,ff:0.55,rain:0.72,wk:0.88,note:"高所得層。"}],西荻窪:[{id:"na",name:"アンティーク街",rent:16,ff:0.80,rain:0.60,wk:1.10,note:"個性派。固定客。"},{id:"nj",name:"住宅街",rent:9,ff:0.42,rain:0.68,wk:0.88,note:"閑静。コツコツ型。"}]};
+    const PRESETS=[{id:"c",em:"☕",name:"カフェ",price:1100,ei:70,to:30,re:0,ur:40,av:52,cr:45,ages:["20代","30代","40代","50代"],genders:["男","女"]},{id:"r",em:"🍜",name:"ラーメン",price:950,ei:95,to:5,re:0,ur:50,av:36,cr:48,ages:["10代","20代","30代","40代"],genders:["男","女"]},{id:"p",em:"🍕",name:"ピザ",price:3500,ei:60,to:40,re:0,ur:80,av:24,cr:55,ages:["10代","20代","30代","40代","50代"],genders:["男","女"]},{id:"g",em:"🥩",name:"牛丼",price:1200,ei:70,to:30,re:0,ur:40,av:24,cr:45,ages:["20代","30代","40代"],genders:["男"]},{id:"b",em:"💈",name:"床屋",price:2500,ei:100,to:0,re:0,ur:60,av:12,cr:30,ages:["30代","40代","50代"],genders:["男"]},{id:"j",em:"🍨",name:"ジェラート",price:1200,ei:30,to:70,re:0,ur:15,av:24,cr:50,ages:["10代","20代","30代"],genders:["男","女"]},{id:"i",em:"🍺",name:"居酒屋",price:3200,ei:100,to:0,re:0,ur:35,av:18,cr:52,ages:["20代","30代","40代","50代"],genders:["男","女"]},{id:"a",em:"👗",name:"アパレル",price:4500,ei:0,to:0,re:100,ur:12,av:8,cr:60,ages:["10代","20代","30代","40代"],genders:["女"]},{id:"pe",em:"🐾",name:"ペット",price:5000,ei:0,to:0,re:100,ur:5,av:12,cr:55,ages:["30代","40代","50代"],genders:["男","女"]},{id:"cu",em:"✏️",name:"その他",price:2000,ei:50,to:30,re:20,ur:20,av:24,cr:50,ages:["20代","30代","40代"],genders:["男","女"]}];
+    const ALL_AGES=["10代以下","10代","20代","30代","40代","50代","60代"];const ALL_GENDERS=["男","女"];
+    const MW={1:{su:.45,cl:.35,ra:.15,ex:.05,tm:.82},2:{su:.42,cl:.33,ra:.18,ex:.07,tm:.85},3:{su:.40,cl:.30,ra:.25,ex:.05,tm:.95},4:{su:.45,cl:.28,ra:.24,ex:.03,tm:1.05},5:{su:.48,cl:.28,ra:.22,ex:.02,tm:1.08},6:{su:.22,cl:.28,ra:.45,ex:.05,tm:.92},7:{su:.38,cl:.22,ra:.28,ex:.12,tm:.88},8:{su:.38,cl:.20,ra:.25,ex:.17,tm:.85},9:{su:.35,cl:.28,ra:.30,ex:.07,tm:.90},10:{su:.52,cl:.28,ra:.18,ex:.02,tm:1.05},11:{su:.48,cl:.32,ra:.18,ex:.02,tm:1.00},12:{su:.45,cl:.33,ra:.17,ex:.05,tm:.88}};
+    const ML = ["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"];
 
-    const LOCS = {
-      阿佐ヶ谷:[
-        {id:"pearl",name:"パールセンター商店街",  rent:22,ff:1.20,rain:0.95,wk:1.12,note:"アーケードで雨に強い。地元密着の回ाइव客。"},
-        {id:"star", name:"スターロード（夜型路地）",rent:14,ff:0.75,rain:0.55,wk:1.05,note:"居酒屋・バー向き。雨の日は客足が激減。"},
-        {id:"jt_a", name:"住宅街（駅10分圏）",    rent:9, ff:0.45,rain:0.70,wk:0.95,note:"固定客の生活圏。低家賃で原価率勝負。"},
-      ],
-      高円寺:[
-        {id:"k_sh",name:"高円寺商店街",     rent:18,ff:1.10,rain:0.75,wk:1.25,note:"サブカル客層。週末は遠方からも来る。"},
-        {id:"k_jt",name:"住宅街（庚申通り）",rent:10,ff:0.55,rain:0.65,wk:0.90,note:"生活密着。常連率が高い。"},
-      ],
-      荻窪:[
-        {id:"o_st",name:"駅前ロータリー商圏",rent:24,ff:1.30,rain:0.80,wk:1.18,note:"ターミナル性が高く乗換客も狙える。"},
-        {id:"o_jt",name:"住宅街（西荻側）",  rent:11,ff:0.50,rain:0.68,wk:0.92,note:"落ち着いた住宅街。ランチ需要が中心。"},
-      ],
-      中野:[
-        {id:"n_bw",name:"ブロードウェイ周辺",rent:26,ff:1.50,rain:0.85,wk:1.30,note:"マニア・オタク層の聖地。集客力最大級。"},
-        {id:"n_jt",name:"住宅街（北口側）",  rent:13,ff:0.60,rain:0.70,wk:1.00,note:"オフィスワーカーのランチ需要もある。"},
-      ],
-      吉祥寺:[
-        {id:"ki_in",name:"井の頭公園エリア", rent:30,ff:1.40,rain:0.65,wk:1.35,note:"おしゃれ激戦区。単価は取れるが競合多い。"},
-        {id:"ki_sh",name:"サンロード商店街", rent:28,ff:1.35,rain:0.88,wk:1.28,note:"アーケードで雨に強い。回遊客が多い。"},
-        {id:"ki_jt",name:"住宅街（東側）",   rent:14,ff:0.55,rain:0.72,wk:0.88,note:"高所得ファミリー層が多い住宅地。"},
-      ],
-      西荻窪:[
-        {id:"ni_an",name:"アンティーク街",    rent:16,ff:0.80,rain:0.60,wk:1.10,note:"個性派・大人向け。固定客が強い。"},
-        {id:"ni_jt",name:"住宅街（南口側）",  rent:9, ff:0.42,rain:0.68,wk:0.88,note:"閑静な住宅地。低家賃でコツコツ型。"},
-      ],
-    };
-
-    const PRESETS = [
-      {id:"cafe",    em:"☕",name:"カフェ",      price:1100,ei:70,to:30,re:0,  ur:40,av:52,cr:45,ages:["20代","30代","40代","50代"],genders:["男","女"]},
-      {id:"ramen",   em:"🍜",name:"ラーメン",    price:950, ei:95,to:5, re:0,  ur:50,av:36,cr:48,ages:["10代","20代","30代","40代"],genders:["男","女"]},
-      {id:"pizza",   em:"🍕",name:"ピザ",        price:3500,ei:60,to:40,re:0,  ur:80,av:24,cr:55,ages:["10代","20代","30代","40代","50代"],genders:["男","女"]},
-      {id:"gyudon",  em:"🥩",name:"牛丼",        price:1200,ei:70,to:30,re:0,  ur:40,av:24,cr:45,ages:["20代","30代","40代"],genders:["男"]},
-      {id:"barber",  em:"💈",name:"床屋",        price:2500,ei:100,to:0,re:0,  ur:60,av:12,cr:30,ages:["30代","40代","50代"],genders:["男"]},
-      {id:"gelato",  em:"🍨",name:"ジェラート",  price:1200,ei:30,to:70,re:0,  ur:15,av:24,cr:50,ages:["10代","20代","30代"],genders:["男","女"]},
-      {id:"izakaya", em:"🍺",name:"居酒屋",      price:3200,ei:100,to:0,re:0,  ur:35,av:18,cr:52,ages:["20代","30代","40代","50代"],genders:["男","女"]},
-      {id:"apparel", em:"👗",name:"アパレル",    price:4500,ei:0,  to:0,re:100,ur:12,av:8, cr:60,ages:["10代","20代","30代","40代"],genders:["女"]},
-      {id:"pet",     em:"🐾",name:"ペット用品",  price:5000,ei:0,  to:0,re:100,ur:5, av:12,cr:55,ages:["30代","40代","50代"],genders:["男","女"]},
-      {id:"custom",  em:"✏️",name:"その他",      price:2000,ei:50,to:30,re:20, ur:20,av:24,cr:50,ages:["20代","30代","40代"],genders:["男","女"]},
-    ];
-
-    const ALL_AGES    = ["10代以下","10代","20代","30代","40代","50代","60代"];
-    const ALL_GENDERS = ["男","女"];
-
-    const MW = {
-      1:{su:0.45,cl:0.35,ra:0.15,ex:0.05,tm:0.82}, 2:{su:0.42,cl:0.33,ra:0.18,ex:0.07,tm:0.85},
-      3:{su:0.40,cl:0.30,ra:0.25,ex:0.05,tm:0.95}, 4:{su:0.45,cl:0.28,ra:0.24,ex:0.03,tm:1.05},
-      5:{su:0.48,cl:0.28,ra:0.22,ex:0.02,tm:1.08}, 6:{su:0.22,cl:0.28,ra:0.45,ex:0.05,tm:0.92},
-      7:{su:0.38,cl:0.22,ra:0.28,ex:0.12,tm:0.88}, 8:{su:0.38,cl:0.20,ra:0.25,ex:0.17,tm:0.85},
-      9:{su:0.35,cl:0.28,ra:0.30,ex:0.07,tm:0.90}, 10:{su:0.52,cl:0.28,ra:0.18,ex:0.02,tm:1.05},
-      11:{su:0.48,cl:0.32,ra:0.18,ex:0.02,tm:1.00}, 12:{su:0.45,cl:0.33,ra:0.17,ex:0.05,tm:0.88},
-    };
     function calcPop(stData, ages, genders) {
       let n = 0;
       for (const a of ages) { const row = stData[a]; if (!row) continue; for (const g of genders) n += row[g] ?? 0; }
@@ -112,8 +75,6 @@
       if (a >= 1e4) return s + Math.round(a/1e4) + "万円";
       return s + Math.round(a).toLocaleString() + "円";
     };
-
-    const ML = ["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"];
 
     function NumField({ label, value, onChange, unit, note, color="#fb923c", prefix="" }) {
       const [raw, setRaw] = useState(String(value)); const [focused, setFocused] = useState(false);
@@ -149,11 +110,12 @@
       const [shopId, setShopId] = useState("cafe"); const [shopName, setShopName] = useState("");
       const [startM, setStartM] = useState(4); const [endM, setEndM] = useState(9);
       const [results, setResults] = useState(null); const [running, setRunning] = useState(false); const [tab, setTab] = useState("setup");
+      
       const [price, setPrice] = useState(1100); const [eiPct, setEiPct] = useState(70); const [toPct, setToPct] = useState(30); const [rePct, setRePct] = useState(0);
       const [ur, setUr] = useState(40); const [av, setAv] = useState(52); const [share, setShare] = useState(3);
       const [cr, setCr] = useState(45); const [staff, setStaff] = useState(3); const [wage, setWage] = useState(1100); const [hrs, setHrs] = useState(8);
-      const [utility, setUtility] = useState(30000); const [ad, setAd] = useState(30000); const [deposit, setDeposit] = useState(0);
-      const [targetMonthly, setTargetMonthly] = useState(0);
+      const [utility, setUtility] = useState(30000); const [ad, setAd] = useState(30000);
+      
       const [ages, setAges] = useState(["20代","30代","40代","50代"]); const [genders, setGenders] = useState(["男","女"]);
 
       const locOptions = LOCS[station]; const loc = locOptions[Math.min(locIdx, locOptions.length-1)];
@@ -177,7 +139,6 @@
         }, 350);
       }, [loc, price, ur, av, share, cr, staff, wage, hrs, utility, ad, adBoost, startM, endM, mixOk]);
 
-      // 🚨ここで落ちていた変数を「totalRevenue」に完全統一しました🚨
       const totalRevenue = results ? results.reduce((s,r)=>s+r.rev,0) : 0;
       const totalProfit  = results ? results.reduce((s,r)=>s+r.profit,0) : 0;
       const avgMonthly   = results ? totalProfit / results.length : 0;
@@ -186,20 +147,17 @@
       const annualBase   = targetPop * (ur/100) * av * price * (share/100) * loc.ff;
 
       const C = { orange:"#fb923c", red:"#f43f5e", purple:"#a855f7", blue:"#38bdf8", green:"#34d399", gray:"#4a6080" };
+
       return (
         <div style={{fontFamily:"'Noto Sans JP','Hiragino Sans',sans-serif",minHeight:"100vh",background:"#070e1c",color:"#dce8f5",paddingBottom:60}}>
           <div style={{background:"#0c1528",borderBottom:"1px solid #152040",padding:"20px 14px 16px",textAlign:"center"}}>
             <div style={{fontSize:9,letterSpacing:5,color:"#243550",marginBottom:4}}>CHŪŌ LINE BUSINESS SIMULATOR</div>
-            <h1 style={{margin:0,fontSize:22,fontWeight:900,background:"linear-gradient(90deg,#fb923c,#f43f5e,#a855f7)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>
-              中央線 出店シミュレーター
-            </h1>
+            <h1 style={{margin:0,fontSize:22,fontWeight:900,background:"linear-gradient(90deg,#fb923c,#f43f5e,#a855f7)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>中央線 出店シミュレーター</h1>
           </div>
 
           <div style={{display:"flex",borderBottom:"1px solid #152040",background:"#0c1528"}}>
             {[["setup","⚙️ 設定"],["result","📊 結果"]].map(([key,label])=>(
-              <button key={key} onClick={()=>setTab(key)} style={{flex:1,padding:"11px 0",border:"none",cursor:"pointer",fontSize:13,fontWeight:700,background:"transparent",color:tab===key?"#fb923c":"#2a4060",borderBottom:tab===key?"2px solid #fb923c":"2px solid transparent"}}>
-                {label}
-              </button>
+              <button key={key} onClick={()=>setTab(key)} style={{flex:1,padding:"11px 0",border:"none",cursor:"pointer",fontSize:13,fontWeight:700,background:"transparent",color:tab===key?"#fb923c":"#2a4060",borderBottom:tab===key?"2px solid #fb923c":"2px solid transparent"}}>{label}</button>
             ))}
           </div>
 
