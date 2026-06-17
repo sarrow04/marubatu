@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>中央線 出店シミュレーター</title>
   
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.3/babel.min.js"></script>
 
   <style>
     body { margin: 0; background: #070e1c; color: #dce8f5; font-family: sans-serif; padding-bottom: 50px; }
@@ -39,7 +39,6 @@
   <script type="text/babel">
     const { useState } = React;
 
-    // ── データ定義（スマホで途切れないよう整理） ──
     const LOCS = {
       阿佐ヶ谷: [
         {name:"パールセンター", rent:22, ff:1.2, rain:0.95, wk:1.12},
@@ -72,7 +71,6 @@
       {id:"izakaya", name:"🍺 居酒屋", price:3200, ur:35, av:18, cr:52}
     ];
 
-    // 月ごとの天候・集客係数
     const MW = {
       1:{tm:0.82}, 2:{tm:0.85}, 3:{tm:0.95}, 4:{tm:1.05}, 5:{tm:1.08}, 6:{tm:0.92},
       7:{tm:0.88}, 8:{tm:0.85}, 9:{tm:0.90}, 10:{tm:1.05}, 11:{tm:1.00}, 12:{tm:0.88}
@@ -80,9 +78,7 @@
 
     const yen = (n) => Math.round(n).toLocaleString() + "円";
 
-    // ── メインアプリ ──
     function App() {
-      // 状態管理（タブ、設定値など）
       const [tab, setTab] = useState("setup");
       const [station, setStation] = useState("阿佐ヶ谷");
       const [locIdx, setLocIdx] = useState(0);
@@ -100,27 +96,21 @@
 
       const [results, setResults] = useState(null);
 
-      // プリセット（業種）反映
       const applyPreset = (p) => {
         setPrice(p.price); setCr(p.cr); setUr(p.ur); setAv(p.av);
       };
 
-      // 計算実行ロジック
       const runSim = () => {
         const loc = LOCS[station][locIdx];
         const monthsData = [];
         
-        // 4月から9月までの半年間を計算
         for (let m = 4; m <= 9; m++) {
           const days = new Date(2025, m, 0).getDate();
           let rev = 0;
           
-          // 1日ごとの売上を計算
           for (let d = 1; d <= days; d++) {
             const isWk = new Date(2025, m - 1, d).getDay() % 6 === 0;
-            // 仮の人口(約10000人) × 利用率 × 回数 / 365日
             const base = (10000 * (ur/100) * av * price * 0.03) / 365;
-            // 立地係数や週末補正をかける
             rev += base * loc.ff * MW[m].tm * (isWk ? loc.wk : 1.0);
           }
           
@@ -140,13 +130,11 @@
         <div className="container">
           <h2 className="title">中央線 出店シミュレーター</h2>
           
-          {/* タブ切り替え */}
           <div className="grid" style={{marginBottom: "20px"}}>
             <button className={tab === "setup" ? "btn btn-primary" : "btn btn-outline"} onClick={() => setTab("setup")}>⚙️ 設定</button>
             <button className={tab === "result" ? "btn btn-primary" : "btn btn-outline"} onClick={() => setTab("result")}>📊 結果</button>
           </div>
 
-          {/* 設定画面 */}
           {tab === "setup" && (
             <div>
               <div className="card">
@@ -191,7 +179,6 @@
             </div>
           )}
 
-          {/* 結果画面 */}
           {tab === "result" && results && (
             <div>
               <div className="grid" style={{marginBottom:"15px"}}>
