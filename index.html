@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>中央線 出店シミュレーター Ver.6.1</title>
+  <title>中央線 出店シミュレーター Ver.7</title>
   <style>
     body { margin: 0; background: #070e1c; color: #dce8f5; font-family: sans-serif; padding-bottom: 50px; }
     .container { max-width: 600px; margin: 0 auto; padding: 15px; }
@@ -36,11 +36,14 @@
     .sensitivity-row { margin-bottom: 8px; }
     .sensitivity-bar-container { background: #070e1c; border-radius: 4px; height: 12px; width: 100%; margin-top: 2px; }
     .sensitivity-bar { background: linear-gradient(90deg, #38bdf8, #a855f7); height: 100%; border-radius: 4px; transition: width 0.5s; }
+    
+    /* 🆕 レポートコピペ用エリアのスタイル */
+    .report-area { width: 100%; height: 120px; background: #070e1c; color: #a8ee9f; border: 1px solid #1a2b42; padding: 8px; border-radius: 5px; font-family: monospace; font-size: 11px; resize: none; margin-top: 8px; outline: none; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h2 class="title">中央線 出店シミュレーター <span style="font-size:14px; color:#fb923c;">Ver.6.1</span></h2>
+    <h2 class="title">中央線 出店シミュレーター <span style="font-size:14px; color:#fb923c;">Ver.7</span></h2>
     
     <div class="grid" style="margin-bottom: 20px;">
       <button id="btn-tab-setup" class="btn btn-primary" onclick="switchTab('setup')">⚙️ 設定</button>
@@ -163,6 +166,22 @@
       return { mean, v, n };
     }
 
+    // 🆕 クリップボードにワンクリックコピーする処理
+    function copyReport() {
+      const textarea = el("report-text");
+      textarea.select();
+      textarea.setSelectionRange(0, 99999);
+      navigator.clipboard.writeText(textarea.value);
+      
+      const copyBtn = el("btn-copy-report");
+      copyBtn.innerText = "✅ レポートをコピーしました！";
+      copyBtn.style.background = "#34d399";
+      setTimeout(() => {
+        copyBtn.innerText = "📋 レポート文章をクリップボードにコピー";
+        copyBtn.style.background = "";
+      }, 2000);
+    }
+
     function runSim() {
       const st = el("station").value; const loc = LOCS[st][selLocIdx];
       const price = val("v-price"), cr = val("v-cr"), baseCust = val("v-cust");
@@ -202,7 +221,6 @@
 
           if (d <= openDays) {
             if (isWk) weekendSales.push(dRev); else weekdaySales.push(dRev);
-            // 🚨バ益バグ修正：vCogs(原価)をしっかり差し引き
             const dProfit = dRev - (dRev * (cr / 100) + (staff * wage * hrs)) - dayFixedCost;
             if (isRain) { if (dProfit >= 0) crossTable.rainBlack++; else crossTable.rainRed++; } 
             else { if (dProfit >= 0) crossTable.sunnyBlack++; else crossTable.sunnyRed++; }
@@ -213,10 +231,7 @@
         const finalEI = mRevEI * openRatio; const finalTO = mRevTO * openRatio; const finalRE = mRevRE * openRatio;
         const mRev = finalEI + finalTO + finalRE;
         
-        const fRent = loc.rent * 10000;
-        const fLabor = staff * wage * hrs * openDays;
-        const vCogs = mRev * (cr/100);
-        // 🚨バ益バグ修正：ここでもvCogsをしっかり引く
+        const fRent = loc.rent * 10000; const fLabor = staff * wage * hrs * openDays; const vCogs = mRev * (cr/100);
         const mProfit = mRev - fRent - fLabor - fixed - ad - vCogs;
 
         totalRev += mRev; totalEI += finalEI; totalTO += finalTO; totalRE += finalRE; totalProfit += mProfit;
@@ -225,81 +240,109 @@
         tableHTML += `<tr style="border-bottom: 1px solid #152040;"><td style="text-align:center; color:#fff;"><strong>${m}月</strong><br><span style="font-size:9px;color:#8ba3c7">${mData.temp}</span></td><td style="text-align:center; font-size:10px;">☀️${days - rainDays}日<br>☔️${rainDays}日</td><td style="color:#fb923c; font-weight:bold;">${yen(mRev)}</td><td>${yen(vCogs)}</td><td>${yen(fLabor)}</td><td style="font-weight:bold; color:${mProfit >= 0 ? "#34d399" : "#f43f5e"};">${yen(mProfit)}</td></tr>`;
       });
 
-      // ── 【損益分岐点(BEP)客数の自動逆算】 ──
       const mCount = monthsToRun.length;
       const totalFixedCostNoLabor = (loc.rent * 10000 + fixed + ad) * mCount;
       const grandTotalFixedCost = totalFixedCostNoLabor + totalLabor; 
       const bepRevenue = grandTotalFixedCost / (1 - (cr / 100));
-      const bepTotalCustomers = bepRevenue / price;
-      const bepMonthlyCustomers = bepTotalCustomers / mCount;
+      const bepMonthlyCustomers = (bepRevenue / price) / mCount;
       const bepDailyCustomers = bepMonthlyCustomers / openDays;
 
-      // ── 🆕【パラメータ感度分析のロジック完全修正】 ──
       const totalRentCost = (loc.rent * 10000) * mCount;
       const totalOtherFixed = fixed * mCount;
 
-      // 各要素を10%改善（売上・客数アップ、またはコスト削減）した時の「純利益のダイレクトな増加額」
-      const impPrice = totalRev * 0.1;                       // 客単価を10%上げた時
-      const impCust  = (totalRev - totalCogs) * 0.1;          // 客数を10%増やした時
-      const impCr    = totalCogs * 0.1;                       // 原価を10%削減した時
-      const impWage  = totalLabor * 0.1;                      // 人件費を10%削減した時
-      const impRent  = totalRentCost * 0.1;                   // 🆕 家賃を10%削減した時
-      const impFixed = totalOtherFixed * 0.1;                 // 🆕 固定費を10%削減した時
-
-      // グラフの最長幅の基準値
+      const impPrice = totalRev * 0.1; const impCust = (totalRev - totalCogs) * 0.1; const impCr = totalCogs * 0.1; const impWage = totalLabor * 0.1; const impRent = totalRentCost * 0.1; const impFixed = totalOtherFixed * 0.1;
       const maxImpact = Math.max(impPrice, impCust, impCr, impWage, impRent, impFixed, 1);
 
-      // ── 統計検定セクションのHTML作成 ──
+      // ── 統計検定処理と文章化 ──
       const s1 = getStats(weekdaySales); const s2 = getStats(weekendSales);
-      let tValue = 0; let tResultHTML = "";
+      let tValue = 0; let tText = "データ不足"; let tVerdict = "曜日ボトルネック未検出";
       if (s1.n > 1 && s2.n > 1) {
-        const sd1 = Math.sqrt(s1.v); const sd2 = Math.sqrt(s2.v);
         tValue = (s1.mean - s2.mean) / Math.sqrt((s1.v / s1.n) + (s2.v / s2.n));
         const isSignif = Math.abs(tValue) > 1.96;
-        tResultHTML = `
-          <div class="stats-box ${isSignif ? 'alert-danger' : 'alert-success'}">
-            <strong>【1】平日 vs 週末の集客t検定 (Welch's t-test)</strong><br>
-            <table class="inner-table">
-              <tr><th>グループ</th><th>サンプル数</th><th>日平均売上</th><th>標準偏差 (SD)</th></tr>
-              <tr><td>平日 (月〜金)</td><td>${s1.n}日</td><td>${yen(s1.mean)}</td><td>${yen(sd1)}</td></tr>
-              <tr><td>週末 (土・日)</td><td>${s2.n}日</td><td>${yen(s2.mean)}</td><td>${yen(sd2)}</td></tr>
-            </table>
-            計算結果: <strong>t値 = ${tValue.toFixed(3)}</strong> (しきい値: ±1.96)<br>
-            判定: ${isSignif ? '⚠️ 曜日によるボトルネックが検出されました。' : '✅ 曜日による売上の偏りは統計的に有意ではありません。'}
-          </div>`;
+        tText = `平日日平均 ${yen(s1.mean)} / 週末日平均 ${yen(s2.mean)} (t値: ${tValue.toFixed(2)})`;
+        tVerdict = isSignif ? (s1.mean < s2.mean ? "⚠️平日の集客がボトルネック" : "⚠️週末の集客がボトルネック") : "✅平日・週末の集客バランス良好";
       }
 
-      const A = crossTable.sunnyBlack, B = crossTable.rainBlack;
-      const C = crossTable.sunnyRed,   D = crossTable.rainRed;
-      const N = A + B + C + D;
-      let chiResultHTML = "";
+      const A = crossTable.sunnyBlack, B = crossTable.rainBlack; const C = crossTable.sunnyRed, D = crossTable.rainRed; const N = A + B + C + D;
+      let chi2 = 0; let chiText = "データ不足"; let chiVerdict = "天候ボトルネック未検出";
       if ((A+B)*(C+D)*(A+C)*(B+D) > 0) {
-        const chi2 = (N * Math.pow(A*D - B*C, 2)) / ((A+B)*(C+D)*(A+C)*(B+D));
+        chi2 = (N * Math.pow(A*D - B*C, 2)) / ((A+B)*(C+D)*(A+C)*(B+D));
         const isSignif = chi2 > 3.84;
-        chiResultHTML = `
-          <div class="stats-box ${isSignif ? 'alert-danger' : 'alert-success'}">
-            <strong>【2】天候 vs 日次損益のカイ二乗独立性検定 (2×2 分割表)</strong><br>
-            <table class="inner-table">
-              <tr><th>天候＼損益</th><th>黒字(日)</th><th>赤字(日)</th><th>合計</th></tr>
-              <tr><td>晴れ・曇り</td><td>${A}日</td><td>${C}日</td><td><strong>${A+C}日</strong></td></tr>
-              <tr><td>雨・悪天候</td><td>${B}日</td><td>${D}日</td><td><strong>${B+D}日</strong></td></tr>
-              <tr><td><strong>合計</strong></td><td><strong>${A+B}日</strong></td><td><strong>${C+D}日</strong></td><td><strong>${N}日</strong></td></tr>
-            </table>
-            計算結果: <strong>χ²値 = ${chi2.toFixed(3)}</strong> (しきい値: 3.841)<br>
-            判定: ${isSignif ? '⚠️ 天候（雨）が経営の有意なボトルネックとして統計的に証明されました。' : '✅ 天候リスクは統計的に許容範囲内です。'}
-          </div>`;
+        chiText = `晴天時黒字率 ${((A)/(A+C)*100).toFixed(0)}% / 雨天時黒字率 ${((B)/(B+D)*100).toFixed(0)}% (χ²値: ${chi2.toFixed(2)})`;
+        chiVerdict = isSignif ? "⚠️悪天候（雨）が経営の致命的ボトルネック" : "✅天候リスク回避済み";
       }
+
+      // 感度分析の並び替えロジック
+      const sensitivityItems = [
+        { name: "客単価の10%向上", val: impPrice }, { name: "客数の10%増加", val: impCust }, { name: "原価率の10%削減", val: impCr },
+        { name: "人件費の10%削減", val: impWage }, { name: "家賃の10%削減", val: impRent }, { name: "その他固定費の10%削減", val: impFixed }
+      ].sort((a, b) => b.val - a.val);
+
+      // ── 🆕 【レポート文字列の構築】 ──
+      const reportStr = `■ 中央線 出店シミュレーション レポート
+【基本出店条件】
+・商圏エリア : ${st}
+・選択立地   : ${loc.name} (家賃: ${loc.rent}万円/月)
+・営業期間   : ${startM}月 〜 ${endM}月 (${mCount}ヶ月間)
+・月間営業日 : ${openDays}日営業
+
+【経営パフォーマンス（全体）】
+・期間総売上 : ${yen(totalRev)}
+・売上内訳   : イートイン ${eiPct}% / テイクアウト ${toPct}% / 物販 ${rePct}%
+・期間総利益 : ${yen(totalProfit)} (月平均: ${yen(totalProfit / mCount)})
+
+【損益分岐点（BEP）逆算】
+・黒字化に必要な月間客数 : ${Math.round(bepMonthlyCustomers).toLocaleString()}人 / 月
+・1営業日あたりの必要客数 : ${bepDailyCustomers.toFixed(1)}人 / 日
+・現状の判定 : ${boostedCust >= bepMonthlyCustomers ? "黒字圏内" : "赤字圏内"}
+
+【データサイエンス統計検定結果】
+・平日vs週末t検定  : ${tVerdict} (${tText})
+・天候リスク独立性 : ${chiVerdict} (${chiText})
+
+【感度分析（最優先ボトルネック改善項目）】
+・第1位 : ${sensitivityItems[0].name} (利益インパクト: +${yen(sensitivityItems[0].val)})
+・第2位 : ${sensitivityItems[1].name} (利益インパクト: +${yen(sensitivityItems[1].val)})
+・第3位 : ${sensitivityItems[2].name} (利益インパクト: +${yen(sensitivityItems[2].val)})`;
+
+      const tResultHTML = `
+        <div class="stats-box ${Math.abs(tValue) > 1.96 ? 'alert-danger' : 'alert-success'}">
+          <strong>【1】平日 vs 週末の集客t検定</strong><br>
+          <table class="inner-table">
+            <tr><th>グループ</th><th>サンプル数</th><th>日平均売上</th><th>標準偏差 (SD)</th></tr>
+            <tr><td>平日 (月〜金)</td><td>${s1.n}日</td><td>${yen(s1.mean)}</td><td>${yen(Math.sqrt(s1.v))}</td></tr>
+            <tr><td>週末 (土・日)</td><td>${s2.n}日</td><td>${yen(s2.mean)}</td><td>${yen(Math.sqrt(s2.v))}</td></tr>
+          </table>
+          計算結果: <strong>t値 = ${tValue.toFixed(3)}</strong> (しきい値: ±1.96)<br>
+          判定: ${tVerdict}
+        </div>`;
+
+      const chiResultHTML = `
+        <div class="stats-box ${chi2 > 3.84 ? 'alert-danger' : 'alert-success'}">
+          <strong>【2】天候 vs 日次損益のカイ二乗独立性検定</strong><br>
+          <table class="inner-table">
+            <tr><th>天候＼損益</th><th>黒字(日)</th><th>赤字(日)</th><th>合計</th></tr>
+            <tr><td>晴れ・曇り</td><td>${A}日</td><td>${C}日</td><td><strong>${A+C}日</strong></td></tr>
+            <tr><td>雨・悪天候</td><td>${B}日</td><td>${D}日</td><td><strong>${B+D}日</strong></td></tr>
+            <tr><td><strong>合計</strong></td><td><strong>${A+B}日</strong></td><td><strong>${C+D}日</strong></td><td><strong>${N}日</strong></td></tr>
+          </table>
+          計算結果: <strong>χ²値 = ${chi2.toFixed(3)}</strong> (しきい値: 3.841)<br>
+          判定: ${chiVerdict}
+        </div>`;
 
       const totalColor = totalProfit >= 0 ? "#34d399" : "#f43f5e";
       const custDiff = boostedCust - bepMonthlyCustomers;
-      const bepStatusHTML = custDiff >= 0 
-        ? `<span style="color:#34d399; font-weight:bold;">黒字圏内 (必要数に対し +${Math.round(custDiff)}人/月の余裕)</span>`
-        : `<span style="color:#f43f5e; font-weight:bold;">赤字圏内 (目標達成に あと ${Math.round(Math.abs(custDiff))}人/月の集客不足)</span>`;
 
       el("result-content").innerHTML = `
+        <div class="card" style="border-top: 3px solid #34d399;">
+          <div style="font-size:12px; color:#8ba3c7; font-weight:bold;">📋 記事執筆用・コピペサマリーレポート</div>
+          <textarea id="report-text" class="report-area" readonly>${reportStr}</textarea>
+          <button id="btn-copy-report" class="btn btn-primary" onclick="copyReport()">📋 レポート文章をクリップボードにコピー</button>
+        </div>
+
         <div class="grid" style="margin-bottom:15px;">
           <div class="card" style="margin:0; border-top:3px solid #fb923c;">
-            <div style="font-size:11px; color:#8ba3c7;">期間売上合計 (${monthsToRun.length}ヶ月 / 広告補正込客数: ${Math.round(boostedCust)}人)</div>
+            <div style="font-size:11px; color:#8ba3c7;">期間売上合計 (${mCount}ヶ月 / 広告補正込客数: ${Math.round(boostedCust)}人)</div>
             <div style="font-size:18px; font-weight:bold; color:#fb923c;">${yen(totalRev)}</div>
             <div style="font-size:10px; color:#8ba3c7; margin-top:8px; border-top:1px dashed #1a2b42; padding-top:6px; line-height:1.4;">
               🍽️イートイン: ${yen(totalEI)} (${eiPct}%)<br>🥡テイクアウト: ${yen(totalTO)} (${toPct}%)<br>🛍️物販売上: ${yen(totalRE)} (${rePct}%)
@@ -316,42 +359,23 @@
           <div style="font-size:12px; line-height:1.6; background:#070e1c; padding:10px; border-radius:6px; border:1px solid #1a2b42;">
             ・トントンに必要な月間客数: <strong style="color:#fb923c; font-size:15px;">${Math.round(bepMonthlyCustomers).toLocaleString()}人 / 月</strong><br>
             ・1営業日あたりの必要客数: <strong style="color:#fb923c;">${bepDailyCustomers.toFixed(1)}人 / 日</strong><br>
-            ・現在のシミュレーション状況: ${bepStatusHTML}
+            ・現在の状況: ${custDiff >= 0 ? '<span style="color:#34d399;font-weight:bold;">黒字圏内</span>' : '<span style="color:#f43f5e;font-weight:bold;">赤字圏内</span>'}
           </div>
         </div>
 
         <div class="card">
           <div style="font-size:12px; color:#8ba3c7; margin-bottom:8px;">📊 パラメータ感度分析（改善時の利益インパクト）</div>
-          <div style="font-size:10px; color:#64748b; margin-bottom:10px;">各要素を10%改善させた時の利益増加額です。立地や人件費の設定によってバーの順位が激しく入れ替わります。</div>
-          
-          <div class="sensitivity-row">
-            <div style="display:flex; justify-content:space-between; font-size:11px;"><span>📈 客単価を10%上げる (単価アップ)</span><strong style="color:#34d399;">+${yen(impPrice)}</strong></div>
-            <div class="sensitivity-bar-container"><div class="sensitivity-bar" style="width: ${(impPrice / maxImpact) * 100}%;"></div></div>
-          </div>
-          <div class="sensitivity-row">
-            <div style="display:flex; justify-content:space-between; font-size:11px;"><span>🏃‍♂️ 客数を10%増やす (集客力強化)</span><strong style="color:#34d399;">+${yen(impCust)}</strong></div>
-            <div class="sensitivity-bar-container"><div class="sensitivity-bar" style="width: ${(impCust / maxImpact) * 100}%;"></div></div>
-          </div>
-          <div class="sensitivity-row">
-            <div style="display:flex; justify-content:space-between; font-size:11px;"><span>📉 原価率を10%下げる (仕入改善)</span><strong style="color:#34d399;">+${yen(impCr)}</strong></div>
-            <div class="sensitivity-bar-container"><div class="sensitivity-bar" style="width: ${(impCr / maxImpact) * 100}%;"></div></div>
-          </div>
-          <div class="sensitivity-row">
-            <div style="display:flex; justify-content:space-between; font-size:11px;"><span>✂️ 時給(人件費)を10%削る (シフト効率化)</span><strong style="color:#34d399;">+${yen(impWage)}</strong></div>
-            <div class="sensitivity-bar-container"><div class="sensitivity-bar" style="width: ${(impWage / maxImpact) * 100}%;"></div></div>
-          </div>
-          <div class="sensitivity-row">
-            <div style="display:flex; justify-content:space-between; font-size:11px;"><span>🏠 家賃を10%下げる (割安物件の交渉効果)</span><strong style="color:#34d399;">+${yen(impRent)}</strong></div>
-            <div class="sensitivity-bar-container"><div class="sensitivity-bar" style="width: ${(impRent / maxImpact) * 100}%;"></div></div>
-          </div>
-          <div class="sensitivity-row">
-            <div style="display:flex; justify-content:space-between; font-size:11px;"><span>📦 その他固定費を10%下げる (節電・経費削減)</span><strong style="color:#34d399;">+${yen(impFixed)}</strong></div>
-            <div class="sensitivity-bar-container"><div class="sensitivity-bar" style="width: ${(impFixed / maxImpact) * 100}%;"></div></div>
-          </div>
+          ${sensitivityItems.map(item => {
+            return `
+              <div class="sensitivity-row">
+                <div style="display:flex; justify-content:space-between; font-size:11px;"><span>${item.name.replace("向上","UP").replace("削減","DOWN")}</span><strong style="color:#34d399;">+${yen(item.val)}</strong></div>
+                <div class="sensitivity-bar-container"><div class="sensitivity-bar" style="width: ${(item.val / maxImpact) * 100}%;"></div></div>
+              </div>`;
+          }).join('')}
         </div>
 
         <div class="card">
-          <div style="font-size:12px; color:#8ba3c7; margin-bottom:5px;">📊 統計的検証・ボトルネックのデータ根拠</div>
+          <div style="font-size:12px; color:#8ba3c7; margin-bottom:5px;">📊 統計切替・ボトルネックのデータ根拠</div>
           ${tResultHTML}
           ${chiResultHTML}
         </div>
