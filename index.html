@@ -1,494 +1,98 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>中央線 出店シミュレーター</title>
-  
-  <!-- Reactを読み込む -->
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-  <!-- ブラウザ上でReactコードを変換するBabelを読み込む -->
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-  <style>
-    body { margin: 0; background: #070e1c; color: #dce8f5; font-family: 'Noto Sans JP', 'Hiragino Sans', sans-serif; }
-  </style>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>中央線 出店シミュレーター</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>body{margin:0;background:#070e1c;color:#dce8f5;font-family:sans-serif;}</style>
 </head>
 <body>
-  <div id="root"></div>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useCallback } = React;
+const POP = {
+  阿佐ヶ谷:{"10代以下":{女:1200,男:1100},"10代":{女:2600,男:2400},"20代":{女:2000,男:1800},"30代":{女:2200,男:2100},"40代":{女:2300,男:2200},"50代":{女:2000,男:1900},"60代":{女:1500,男:1400}},
+  高円寺:{"10代以下":{女:1000,男:900},"10代":{女:2200,男:2100},"20代":{女:2800,男:2700},"30代":{女:2500,男:2400},"40代":{女:2400,男:2300},"50代":{女:1900,男:1800},"60代":{女:1300,男:1200}},
+  荻窪:{"10代以下":{女:1800,男:1700},"10代":{女:3500,男:3300},"20代":{女:2400,男:2200},"30代":{女:3100,男:2900},"40代":{女:3300,男:3100},"50代":{女:2800,男:2600},"60代":{女:2100,男:1900}},
+  中野:{"10代以下":{女:2200,男:2100},"10代":{女:5000,男:4800},"20代":{女:6200,男:6000},"30代":{女:5500,男:5300},"40代":{女:5100,男:4900},"50代":{女:4400,男:4200},"60代":{女:3500,男:3200}},
+  吉祥寺:{"10代以下":{女:2000,男:1900},"10代":{女:4000,男:3800},"20代":{女:4200,男:3900},"30代":{女:4500,男:4100},"40代":{女:4600,男:4200},"50代":{女:3900,男:3600},"60代":{女:2900,男:2600}},
+  西荻窪:{"10代以下":{女:791,男:762},"10代":{女:951,男:938},"20代":{女:2308,男:2007},"30代":{女:2277,男:2017},"40代":{女:2458,男:2124},"50代":{女:2684,男:2194},"60代":{女:1707,男:1625}},
+};
+const LOCS = {
+  阿佐ヶ谷:[{id:"p",name:"パールセンター",rent:22,ff:1.2,rain:0.95,wk:1.12},{id:"s",name:"スターロード",rent:14,ff:0.75,rain:0.55,wk:1.05},{id:"j",name:"住宅街",rent:9,ff:0.45,rain:0.7,wk:0.95}],
+  高円寺:[{id:"s",name:"高円寺商店街",rent:18,ff:1.1,rain:0.75,wk:1.25},{id:"j",name:"住宅街",rent:10,ff:0.55,rain:0.65,wk:0.9}],
+  荻窪:[{id:"s",name:"駅前商圏",rent:24,ff:1.3,rain:0.8,wk:1.18},{id:"j",name:"住宅街",rent:11,ff:0.5,rain:0.68,wk:0.92}],
+  中野:[{id:"b",name:"ブロードウェイ",rent:26,ff:1.5,rain:0.85,wk:1.3},{id:"j",name:"住宅街",rent:13,ff:0.6,rain:0.7,wk:1.0}],
+  吉祥寺:[{id:"i",name:"井の頭公園",rent:30,ff:1.4,rain:0.65,wk:1.35},{id:"s",name:"サンロード",rent:28,ff:1.35,rain:0.88,wk:1.28},{id:"j",name:"住宅街",rent:14,ff:0.55,rain:0.72,wk:0.88}],
+  西荻窪:[{id:"a",name:"アンティーク街",rent:16,ff:0.8,rain:0.6,wk:1.1},{id:"j",name:"住宅街",rent:9,ff:0.42,rain:0.68,wk:0.88}],
+};
+const PRESETS = [
+  {id:"c",em:"☕",name:"カフェ",price:1100,ei:70,to:30,re:0,ur:40,av:52,cr:45},{id:"r",em:"🍜",name:"ラーメン",price:950,ei:95,to:5,re:0,ur:50,av:36,cr:48},
+  {id:"p",em:"🍕",name:"ピザ",price:3500,ei:60,to:40,re:0,ur:80,av:24,cr:55},{id:"g",em:"🥩",name:"牛丼",price:1200,ei:70,to:30,re:0,ur:40,av:24,cr:45},
+  {id:"b",em:"💈",name:"床屋",price:2500,ei:100,to:0,re:0,ur:60,av:12,cr:30},{id:"i",em:"🍺",name:"居酒屋",price:3200,ei:100,to:0,re:0,ur:35,av:18,cr:52}
+];
+const MW = {1:{su:.45,cl:.35,ra:.15,tm:.82},2:{su:.42,cl:.33,ra:.18,tm:.85},3:{su:.4,cl:.3,ra:.25,tm:.95},4:{su:.45,cl:.28,ra:.24,tm:1.05},5:{su:.48,cl:.28,ra:.22,tm:1.08},6:{su:.22,cl:.28,ra:.45,tm:.92},7:{su:.38,cl:.22,ra:.28,tm:.88},8:{su:.38,cl:.2,ra:.25,tm:.85},9:{su:.35,cl:.28,ra:.3,tm:.9},10:{su:.52,cl:.28,ra:.18,tm:1.05},11:{su:.48,cl:.32,ra:.18,tm:1.0},12:{su:.45,cl:.33,ra:.17,tm:.88}};
+const yen = n => n<0 ? "−"+Math.round(Math.abs(n)).toLocaleString() : Math.round(n).toLocaleString()+"円";
+const calcPop = (sd, a, g) => a.reduce((n, x) => n + (sd[x] ? g.reduce((m, y) => m + (sd[x][y]||0), 0) : 0), 0);
 
-  <!-- ここからReactのコード -->
-  <script type="text/babel">
-    const { useState, useCallback } = React;
+function simMonth(mNum, loc, p) {
+  const wt = MW[mNum], days = new Date(2025, mNum, 0).getDate();
+  let rev = 0;
+  for (let d = 1; d <= days; d++) {
+    const isWk = new Date(2025, mNum-1, d).getDay()%6===0, roll = Math.random();
+    let wm = roll<wt.su ? 1.0 : (roll<wt.su+wt.cl ? 0.88 : (roll<wt.su+wt.cl+wt.ra ? loc.rain : 0.72));
+    rev += ((p.price*p.ur*p.av*p.share)/3650000) * loc.ff * wm * wt.tm * (isWk?loc.wk:1.0);
+  }
+  return { mName:`${mNum}月`, rev, profit: rev - loc.rent*10000 - p.staff*p.wage*p.hrs*days - p.utility - rev*(p.cr/100) - p.ad };
+}
 
-    // ── 人口データ ──────────────────────────────────────────────
-    const POP = {
-      阿佐ヶ谷:{"10代以下":{女:1200,男:1100},"10代":{女:2600,男:2400},"20代":{女:2000,男:1800},"30代":{女:2200,男:2100},"40代":{女:2300,男:2200},"50代":{女:2000,男:1900},"60代":{女:1500,男:1400}},
-      高円寺:  {"10代以下":{女:1000,男:900}, "10代":{女:2200,男:2100},"20代":{女:2800,男:2700},"30代":{女:2500,男:2400},"40代":{女:2400,男:2300},"50代":{女:1900,男:1800},"60代":{女:1300,男:1200}},
-      荻窪:    {"10代以下":{女:1800,男:1700},"10代":{女:3500,男:3300},"20代":{女:2400,男:2200},"30代":{女:3100,男:2900},"40代":{女:3300,男:3100},"50代":{女:2800,男:2600},"60代":{女:2100,男:1900}},
-      中野:    {"10代以下":{女:2200,男:2100},"10代":{女:5000,男:4800},"20代":{女:6200,男:6000},"30代":{女:5500,男:5300},"40代":{女:5100,男:4900},"50代":{女:4400,男:4200},"60代":{女:3500,男:3200}},
-      吉祥寺:  {"10代以下":{女:2000,男:1900},"10代":{女:4000,男:3800},"20代":{女:4200,男:3900},"30代":{女:4500,男:4100},"40代":{女:4600,男:4200},"50代":{女:3900,男:3600},"60代":{女:2900,男:2600}},
-      西荻窪:  {"10代以下":{女:791,男:762},  "10代":{女:951,男:938}, "20代":{女:2308,男:2007},"30代":{女:2277,男:2017},"40代":{女:2458,男:2124},"50代":{女:2684,男:2194},"60代":{女:1707,男:1625}},
-    };
+function NumField({label, val, set}) { return <div style={{background:"#0d1825",padding:8,borderRadius:8,marginBottom:4}}><div style={{fontSize:10,color:"#4a6080"}}>{label}</div><input type="number" value={val} onChange={e=>set(+e.target.value)} style={{background:"transparent",color:"#fb923c",fontSize:18,fontWeight:"bold",border:"none",width:"100%"}}/></div>; }
 
-    const LOCS = {
-      阿佐ヶ谷:[
-        {id:"pearl",name:"パールセンター商店街",  rent:22,ff:1.20,rain:0.95,wk:1.12,note:"アーケードで雨に強い。地元密着の回遊客。"},
-        {id:"star", name:"スターロード（夜型路地）",rent:14,ff:0.75,rain:0.55,wk:1.05,note:"居酒屋・バー向き。雨の日は客足が激減。"},
-        {id:"jt_a", name:"住宅街（駅10分圏）",    rent:9, ff:0.45,rain:0.70,wk:0.95,note:"固定客の生活圏。低家賃で原価率勝負。"},
-      ],
-      高円寺:[
-        {id:"k_sh",name:"高円寺商店街",     rent:18,ff:1.10,rain:0.75,wk:1.25,note:"サブカル客層。週末は遠方からも来る。"},
-        {id:"k_jt",name:"住宅街（庚申通り）",rent:10,ff:0.55,rain:0.65,wk:0.90,note:"生活密着。常連率が高い。"},
-      ],
-      荻窪:[
-        {id:"o_st",name:"駅前ロータリー商圏",rent:24,ff:1.30,rain:0.80,wk:1.18,note:"ターミナル性が高く乗換客も狙える。"},
-        {id:"o_jt",name:"住宅街（西荻側）",  rent:11,ff:0.50,rain:0.68,wk:0.92,note:"落ち着いた住宅街。ランチ需要が中心。"},
-      ],
-      中野:[
-        {id:"n_bw",name:"ブロードウェイ周辺",rent:26,ff:1.50,rain:0.85,wk:1.30,note:"マニア・オタク層の聖地。集客力最大級。"},
-        {id:"n_jt",name:"住宅街（北口側）",  rent:13,ff:0.60,rain:0.70,wk:1.00,note:"オフィスワーカーのランチ需要もある。"},
-      ],
-      吉祥寺:[
-        {id:"ki_in",name:"井の頭公園エリア", rent:30,ff:1.40,rain:0.65,wk:1.35,note:"おしゃれ激戦区。単価は取れるが競合多い。"},
-        {id:"ki_sh",name:"サンロード商店街", rent:28,ff:1.35,rain:0.88,wk:1.28,note:"アーケードで雨に強い。回遊客が多い。"},
-        {id:"ki_jt",name:"住宅街（東側）",   rent:14,ff:0.55,rain:0.72,wk:0.88,note:"高所得ファミリー層が多い住宅地。"},
-      ],
-      西荻窪:[
-        {id:"ni_an",name:"アンティーク街",    rent:16,ff:0.80,rain:0.60,wk:1.10,note:"個性派・大人向け。固定客が強い。"},
-        {id:"ni_jt",name:"住宅街（南口側）",  rent:9, ff:0.42,rain:0.68,wk:0.88,note:"閑静な住宅地。低家賃でコツコツ型。"},
-      ],
-    };
+function App() {
+  const [st, setSt] = useState("阿佐ヶ谷"); const [li, setLi] = useState(0); const [tab, setTab] = useState("setup");
+  const [pr, setPr] = useState(1100); const [ur, setUr] = useState(40); const [av, setAv] = useState(52); const [sh, setSh] = useState(3);
+  const [cr, setCr] = useState(45); const [sf, setSf] = useState(3); const [wg, setWg] = useState(1100); const [hr, setHr] = useState(8); const [ut, setUt] = useState(30000); const [ad, setAd] = useState(30000);
+  const [res, setRes] = useState(null);
 
-    const PRESETS = [
-      {id:"cafe",    em:"☕",name:"カフェ",      price:1100,ei:70,to:30,re:0,  ur:40,av:52,cr:45,ages:["20代","30代","40代","50代"],genders:["男","女"]},
-      {id:"ramen",   em:"🍜",name:"ラーメン",    price:950, ei:95,to:5, re:0,  ur:50,av:36,cr:48,ages:["10代","20代","30代","40代"],genders:["男","女"]},
-      {id:"pizza",   em:"🍕",name:"ピザ",        price:3500,ei:60,to:40,re:0,  ur:80,av:24,cr:55,ages:["10代","20代","30代","40代","50代"],genders:["男","女"]},
-      {id:"gyudon",  em:"🥩",name:"牛丼",        price:1200,ei:70,to:30,re:0,  ur:40,av:24,cr:45,ages:["20代","30代","40代"],genders:["男"]},
-      {id:"barber",  em:"💈",name:"床屋",        price:2500,ei:100,to:0,re:0,  ur:60,av:12,cr:30,ages:["30代","40代","50代"],genders:["男"]},
-      {id:"gelato",  em:"🍨",name:"ジェラート",  price:1200,ei:30,to:70,re:0,  ur:15,av:24,cr:50,ages:["10代","20代","30代"],genders:["男","女"]},
-      {id:"izakaya", em:"🍺",name:"居酒屋",      price:3200,ei:100,to:0,re:0,  ur:35,av:18,cr:52,ages:["20代","30代","40代","50代"],genders:["男","女"]},
-      {id:"apparel", em:"👗",name:"アパレル",    price:4500,ei:0,  to:0,re:100,ur:12,av:8, cr:60,ages:["10代","20代","30代","40代"],genders:["女"]},
-      {id:"pet",     em:"🐾",name:"ペット用品",  price:5000,ei:0,  to:0,re:100,ur:5, av:12,cr:55,ages:["30代","40代","50代"],genders:["男","女"]},
-      {id:"custom",  em:"✏️",name:"その他",      price:2000,ei:50,to:30,re:20, ur:20,av:24,cr:50,ages:["20代","30代","40代"],genders:["男","女"]},
-    ];
+  const loc = LOCS[st][li];
+  const runSim = () => {
+    let m = []; for(let i=4;i<=9;i++) m.push(simMonth(i, loc, {price:pr,ur,av,share:sh,cr,staff:sf,wage:wg,hrs:hr,utility:ut,ad}));
+    setRes(m); setTab("result");
+  };
 
-    const ALL_AGES    = ["10代以下","10代","20代","30代","40代","50代","60代"];
-    const ALL_GENDERS = ["男","女"];
+  return (
+    <div style={{maxWidth:600,margin:"0 auto",padding:12}}>
+      <h2 style={{color:"#fb923c",textAlign:"center"}}>出店シミュレーター</h2>
+      <div style={{display:"flex",gap:10,marginBottom:15}}>
+        <button onClick={()=>setTab("setup")} style={{flex:1,padding:10,background:tab==="setup"?"#fb923c":"#1a2b42",color:"#fff",border:"none",borderRadius:8}}>設定</button>
+        <button onClick={()=>setTab("result")} style={{flex:1,padding:10,background:tab==="result"?"#fb923c":"#1a2b42",color:"#fff",border:"none",borderRadius:8}}>結果</button>
+      </div>
 
-    const MW = {
-      1:{su:0.45,cl:0.35,ra:0.15,ex:0.05,tm:0.82},
-      2:{su:0.42,cl:0.33,ra:0.18,ex:0.07,tm:0.85},
-      3:{su:0.40,cl:0.30,ra:0.25,ex:0.05,tm:0.95},
-      4:{su:0.45,cl:0.28,ra:0.24,ex:0.03,tm:1.05},
-      5:{su:0.48,cl:0.28,ra:0.22,ex:0.02,tm:1.08},
-      6:{su:0.22,cl:0.28,ra:0.45,ex:0.05,tm:0.92},
-      7:{su:0.38,cl:0.22,ra:0.28,ex:0.12,tm:0.88},
-      8:{su:0.38,cl:0.20,ra:0.25,ex:0.17,tm:0.85},
-      9:{su:0.35,cl:0.28,ra:0.30,ex:0.07,tm:0.90},
-      10:{su:0.52,cl:0.28,ra:0.18,ex:0.02,tm:1.05},
-      11:{su:0.48,cl:0.32,ra:0.18,ex:0.02,tm:1.00},
-      12:{su:0.45,cl:0.33,ra:0.17,ex:0.05,tm:0.88},
-    };
-
-    function calcPop(stData, ages, genders) {
-      let n = 0;
-      for (const a of ages) {
-        const row = stData[a]; if (!row) continue;
-        for (const g of genders) n += row[g] ?? 0;
-      }
-      return n;
-    }
-
-    function simMonth(mNum, loc, p) {
-      const wt = MW[mNum];
-      const days = new Date(2025, mNum, 0).getDate();
-      let rev = 0, cust = 0;
-      const wc = {su:0,cl:0,ra:0,ex:0};
-      for (let d = 1; d <= days; d++) {
-        const dow = new Date(2025, mNum-1, d).getDay();
-        const isWk = dow===0||dow===6;
-        const roll = Math.random();
-        let wm, wk;
-        if      (roll < wt.su)                { wk="su"; wm=1.00; }
-        else if (roll < wt.su+wt.cl)         { wk="cl"; wm=0.88; }
-        else if (roll < wt.su+wt.cl+wt.ra)   { wk="ra"; wm=loc.rain; }
-        else                                  { wk="ex"; wm=0.72; }
-        wc[wk]++;
-        const base = (p.price * (p.ur/100) * p.av * (p.share/100)) / 365;
-        const dr = base * loc.ff * wm * wt.tm * (isWk ? loc.wk : 1.0) * (1 + p.adBoost);
-        rev  += dr;
-        cust += Math.round(dr / p.price);
-      }
-      const fRent   = loc.rent * 10000;
-      const fLabor  = p.staff * p.wage * p.hrs * days;
-      const fUtil   = p.utility;
-      const vCogs   = rev * (p.cr/100);
-      const fAd     = p.ad;
-      const profit  = rev - fRent - fLabor - fUtil - vCogs - fAd;
-      return { mNum, mName:`${mNum}月`, days, rev, cust, fRent, fLabor, fUtil, vCogs, fAd, profit, wc };
-    }
-
-    const yen = (n) => {
-      if (n == null) return "—";
-      const s = n < 0 ? "−" : ""; const a = Math.abs(n);
-      if (a >= 1e8) return s + (a/1e8).toFixed(2) + "億円";
-      if (a >= 1e4) return s + Math.round(a/1e4) + "万円";
-      return s + Math.round(a).toLocaleString() + "円";
-    };
-
-    const ML = ["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"];
-
-    function NumField({ label, value, onChange, unit, note, color="#fb923c", prefix="" }) {
-      const [raw, setRaw] = useState(String(value));
-      const [focused, setFocused] = useState(false);
-      const displayed = focused ? raw : String(value);
-
-      return (
-        <div style={{background:"#0d1825",borderRadius:10,padding:"10px 12px",border:"1px solid #1a2b42"}}>
-          <div style={{fontSize:10,color:"#4a6080",marginBottom:5}}>{label}</div>
-          <div style={{display:"flex",alignItems:"baseline",gap:4}}>
-            {prefix && <span style={{color:"#4a6080",fontSize:14}}>{prefix}</span>}
-            <input
-              type="text"
-              inputMode="numeric"
-              value={displayed}
-              onFocus={() => { setRaw(String(value)); setFocused(true); }}
-              onChange={e => { setRaw(e.target.value); }}
-              onBlur={() => {
-                setFocused(false);
-                const parsed = parseInt(raw.replace(/[^0-9]/g,""), 10);
-                if (!isNaN(parsed)) onChange(parsed);
-                else setRaw(String(value));
-              }}
-              style={{
-                background:"transparent", border:"none", outline:"none",
-                color, fontSize:22, fontWeight:900,
-                width:"100%", minWidth:0,
-              }}
-            />
-            {unit && <span style={{color:"#4a6080",fontSize:13,flexShrink:0}}>{unit}</span>}
-          </div>
-          {note && <div style={{fontSize:9,color:"#2a3a52",marginTop:3}}>{note}</div>}
+      {tab==="setup" && <div>
+        <div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:10}}>{Object.keys(LOCS).map(s=><button key={s} onClick={()=>{setSt(s);setLi(0);}} style={{padding:6,background:st===s?"#f43f5e":"#1a2b42",color:"#fff",border:"none",borderRadius:4}}>{s}</button>)}</div>
+        <div style={{display:"flex",gap:4,marginBottom:15}}>{LOCS[st].map((l,i)=><button key={i} onClick={()=>setLi(i)} style={{padding:6,background:li===i?"#a855f7":"#1a2b42",color:"#fff",border:"none",borderRadius:4}}>{l.name}</button>)}</div>
+        
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+          <NumField label="客単価(円)" val={pr} set={setPr} /> <NumField label="原価率(%)" val={cr} set={setCr} />
+          <NumField label="利用率(%)" val={ur} set={setUr} /> <NumField label="年利用回数" val={av} set={setAv} />
+          <NumField label="シェア(%)" val={sh} set={setSh} /> <NumField label="スタッフ数" val={sf} set={setSf} />
+          <NumField label="時給(円)" val={wg} set={setWg} /> <NumField label="労働時間/日" val={hr} set={setHr} />
         </div>
-      );
-    }
+        <button onClick={runSim} style={{width:"100%",padding:15,marginTop:15,background:"#34d399",color:"#000",fontWeight:"bold",border:"none",borderRadius:8}}>シミュレーション実行</button>
+      </div>}
 
-    function MixInput({ label, value, onChange, color, icon, note }) {
-      const [raw, setRaw] = useState(String(value));
-      const [focused, setFocused] = useState(false);
-      return (
-        <div style={{background:"#0d1825",borderRadius:10,padding:"10px 10px",border:`1px solid ${color}25`}}>
-          <div style={{fontSize:10,color:"#4a6080",marginBottom:4}}>{icon} {label}</div>
-          <div style={{display:"flex",alignItems:"baseline",gap:3}}>
-            <input
-              type="text" inputMode="numeric"
-              value={focused ? raw : String(value)}
-              onFocus={()=>{ setRaw(String(value)); setFocused(true); }}
-              onChange={e=>setRaw(e.target.value)}
-              onBlur={()=>{
-                setFocused(false);
-                const v = parseInt(raw.replace(/[^0-9]/g,""),10);
-                if (!isNaN(v)) onChange(Math.max(0,Math.min(100,v)));
-              }}
-              style={{background:"transparent",border:"none",outline:"none",color,fontSize:24,fontWeight:900,width:"100%",minWidth:0}}
-            />
-            <span style={{color:"#4a6080",fontSize:14}}>%</span>
-          </div>
-          {note && <div style={{fontSize:9,color:"#2a3a52",marginTop:2}}>{note}</div>}
+      {tab==="result" && res && <div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:15}}>
+          <div style={{background:"#1a2b42",padding:12,borderRadius:8}}>総売上<br/><b style={{color:"#fb923c",fontSize:20}}>{yen(res.reduce((s,r)=>s+r.rev,0))}</b></div>
+          <div style={{background:"#1a2b42",padding:12,borderRadius:8}}>総利益<br/><b style={{color:"#34d399",fontSize:20}}>{yen(res.reduce((s,r)=>s+r.profit,0))}</b></div>
         </div>
-      );
-    }
-
-    function App() {
-      const [station,  setStation]  = useState("阿佐ヶ谷");
-      const [locIdx,   setLocIdx]   = useState(0);
-      const [shopId,   setShopId]   = useState("cafe");
-      const [shopName, setShopName] = useState("");
-      const [startM,   setStartM]   = useState(4);
-      const [endM,     setEndM]     = useState(9);
-      const [results,  setResults]  = useState(null);
-      const [running,  setRunning]  = useState(false);
-      const [tab,      setTab]      = useState("setup");
-
-      const [price,   setPrice]   = useState(1100);
-      const [eiPct,   setEiPct]   = useState(70);
-      const [toPct,   setToPct]   = useState(30);
-      const [rePct,   setRePct]   = useState(0);
-      const [ur,      setUr]      = useState(40);
-      const [av,      setAv]      = useState(52);
-      const [share,   setShare]   = useState(3);
-
-      const [cr,      setCr]      = useState(45);
-      const [staff,   setStaff]   = useState(3);
-      const [wage,    setWage]    = useState(1100);
-      const [hrs,     setHrs]     = useState(8);
-      const [utility, setUtility] = useState(30000);
-      const [ad,      setAd]      = useState(30000);
-      const [deposit, setDeposit] = useState(0);
-
-      const [targetMonthly, setTargetMonthly] = useState(0);
-
-      const [ages,    setAges]    = useState(["20代","30代","40代","50代"]);
-      const [genders, setGenders] = useState(["男","女"]);
-
-      const locOptions = LOCS[station];
-      const loc = locOptions[Math.min(locIdx, locOptions.length-1)];
-      const stData = POP[station];
-      const targetPop = calcPop(stData, ages, genders);
-      const adBoost = Math.min(0.20, ad / 1000000);
-      const mixOk = (eiPct + toPct + rePct) === 100;
-
-      const applyPreset = (p) => {
-        setShopId(p.id); setPrice(p.price); setEiPct(p.ei); setToPct(p.to); setRePct(p.re);
-        setUr(p.ur); setAv(p.av); setCr(p.cr); setAges(p.ages); setGenders(p.genders);
-        setResults(null);
-      };
-
-      const toggleAge = (a) => { setAges(prev => prev.includes(a)?prev.filter(x=>x!==a):[...prev,a]); setResults(null); };
-      const toggleGen = (g) => { setGenders(prev => prev.includes(g)?prev.filter(x=>x!==g):[...prev,g]); setResults(null); };
-
-      const monthFixed = loc.rent*10000 + staff*wage*hrs*30 + utility + ad;
-      const breakeven = monthFixed / (1 - cr/100);
-
-      const runSim = useCallback(() => {
-        if (!mixOk) return;
-        setRunning(true); setResults(null);
-        const p = { price, ur, av, share, cr, staff, wage, hrs, utility, ad, adBoost };
-        setTimeout(() => {
-          const months = [];
-          let m = startM;
-          while (true) {
-            months.push(simMonth(m, loc, p));
-            if (m === endM) break;
-            m = m%12+1;
-            if (months.length > 24) break;
-          }
-          setResults(months);
-          setRunning(false);
-          setTab("result");
-        }, 350);
-      }, [loc, price, ur, av, share, cr, staff, wage, hrs, utility, ad, adBoost, startM, endM, mixOk]);
-
-      const totalRev    = results ? results.reduce((s,r)=>s+r.rev,0) : 0;
-      const totalProfit = results ? results.reduce((s,r)=>s+r.profit,0) : 0;
-      const avgMonthly  = results ? totalProfit / results.length : 0;
-      const maxRev      = results ? Math.max(...results.map(r=>r.rev), 1) : 1;
-      const profitMonths = results ? results.filter(r=>r.profit>=0).length : 0;
-      const annualBase = targetPop * (ur/100) * av * price * (share/100) * loc.ff;
-
-      const C = { orange:"#fb923c", red:"#f43f5e", purple:"#a855f7", blue:"#38bdf8", green:"#34d399", gray:"#4a6080" };
-
-      // (※変数名エラー回避のため totalRevenue を totalRev に修正しています)
-      return (
-        <div style={{fontFamily:"'Noto Sans JP','Hiragino Sans',sans-serif",minHeight:"100vh",background:"#070e1c",color:"#dce8f5",paddingBottom:60}}>
-          <div style={{background:"#0c1528",borderBottom:"1px solid #152040",padding:"20px 14px 16px",textAlign:"center"}}>
-            <div style={{fontSize:9,letterSpacing:5,color:"#243550",marginBottom:4}}>CHŪŌ LINE BUSINESS SIMULATOR</div>
-            <h1 style={{margin:0,fontSize:22,fontWeight:900,
-              background:"linear-gradient(90deg,#fb923c,#f43f5e,#a855f7)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>
-              中央線 出店シミュレーター
-            </h1>
-          </div>
-
-          <div style={{display:"flex",borderBottom:"1px solid #152040",background:"#0c1528"}}>
-            {[["setup","⚙️ 設定"],["result","📊 結果"]].map(([key,label])=>(
-              <button key={key} onClick={()=>setTab(key)} style={{
-                flex:1,padding:"11px 0",border:"none",cursor:"pointer",fontSize:13,fontWeight:700,
-                background:"transparent",
-                color:tab===key?"#fb923c":"#2a4060",
-                borderBottom:tab===key?"2px solid #fb923c":"2px solid transparent",
-              }}>{label}</button>
-            ))}
-          </div>
-
-          <div style={{maxWidth:720,margin:"0 auto",padding:"0 12px"}}>
-          {tab==="setup" && (
-            <>
-            <Sec title="エリアを選ぶ">
-              <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
-                {Object.keys(LOCS).map(s=>(
-                  <Pill key={s} active={station===s} color={C.red}
-                    onClick={()=>{setStation(s);setLocIdx(0);setResults(null);}}>
-                    {s}
-                  </Pill>
-                ))}
-              </div>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(170px,1fr))",gap:7}}>
-                {locOptions.map((l,i)=>(
-                  <button key={l.id} onClick={()=>{setLocIdx(i);setResults(null);}} style={{
-                    padding:"10px 11px",borderRadius:11,cursor:"pointer",textAlign:"left",transition:"all .15s",
-                    border:`2px solid ${locIdx===i?"#f43f5e":"#152040"}`,
-                    background:locIdx===i?"#2a0e1a":"#0c1528",
-                    color:locIdx===i?"#fda4af":"#2a4060",
-                  }}>
-                    <div style={{fontWeight:800,fontSize:12,marginBottom:2}}>{l.name}</div>
-                    <div style={{fontSize:10,color:locIdx===i?"#f87171":"#1e3050"}}>家賃 {l.rent}万円/月</div>
-                    <div style={{fontSize:10,color:locIdx===i?"#fecdd3":"#1e3050",marginTop:3,lineHeight:1.5}}>{l.note}</div>
-                  </button>
-                ))}
-              </div>
-            </Sec>
-
-            <Sec title="業種を選ぶ">
-              <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:5}}>
-                {PRESETS.map(p=>(
-                  <button key={p.id} onClick={()=>applyPreset(p)} style={{
-                    padding:"8px 3px",borderRadius:10,cursor:"pointer",textAlign:"center",fontSize:11,fontWeight:700,transition:"all .15s",
-                    border:`2px solid ${shopId===p.id?"#a855f7":"#152040"}`,
-                    background:shopId===p.id?"#180e2e":"#0c1528",
-                    color:shopId===p.id?"#d8b4fe":"#2a4060",
-                  }}>
-                    <div style={{fontSize:20,marginBottom:1}}>{p.em}</div>
-                    <div style={{fontSize:9,lineHeight:1.3}}>{p.name}</div>
-                  </button>
-                ))}
-              </div>
-            </Sec>
-
-            <Sec title="売上構成 & 単価">
-              <NumField label="平均客単価" value={price} onChange={v=>{setPrice(v);setResults(null);}} unit="円" prefix="¥" color={C.orange} note="加重平均単価"/>
-              <div style={{marginTop:12}}>
-                <div style={{fontSize:10,color:C.gray,marginBottom:6}}>売上内訳（合計100%）</div>
-                <div style={{display:"flex",height:14,borderRadius:6,overflow:"hidden",gap:1,marginBottom:8}}>
-                  {[{v:eiPct,c:"#fb923c"},{v:toPct,c:"#38bdf8"},{v:rePct,c:"#a855f7"}].map((x,i)=>(
-                    x.v>0 && <div key={i} style={{flex:x.v,background:x.c,display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,fontWeight:700,color:"#000"}}>
-                      {x.v>8?x.v+"%":""}
-                    </div>
-                  ))}
-                </div>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
-                  <MixInput label="イートイン"   value={eiPct} onChange={v=>{setEiPct(v);setResults(null);}} color="#fb923c" icon="🍽️" />
-                  <MixInput label="テイクアウト" value={toPct} onChange={v=>{setToPct(v);setResults(null);}} color="#38bdf8" icon="🥡" />
-                  <MixInput label="物販"         value={rePct} onChange={v=>{setRePct(v);setResults(null);}} color="#a855f7" icon="🛍️" />
-                </div>
-                {!mixOk && <div style={{marginTop:6,fontSize:11,color:"#f43f5e"}}>⚠ 合計 {eiPct+toPct+rePct}%（100%にしてください）</div>}
-              </div>
-            </Sec>
-
-            <Sec title="ターゲット人口">
-              <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:7}}>
-                {ALL_AGES.map(a=>(<Pill key={a} active={ages.includes(a)} color={C.blue} onClick={()=>toggleAge(a)}>{a}</Pill>))}
-              </div>
-              <div style={{display:"flex",gap:7,marginBottom:7}}>
-                {ALL_GENDERS.map(g=>(<Pill key={g} active={genders.includes(g)} color={C.blue} onClick={()=>toggleGen(g)}>{g==="男"?"👨 男性":"👩 女性"}</Pill>))}
-              </div>
-              <div style={{fontSize:12,color:"#3a5070"}}>
-                ターゲット人口: <strong style={{color:C.blue,fontSize:16}}>{targetPop.toLocaleString()}人</strong>
-              </div>
-            </Sec>
-
-            <Sec title="フェルミ推計パラメータ">
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-                <NumField label="利用率" value={ur} onChange={v=>{setUr(Math.min(100,v));setResults(null);}} unit="%" color={C.orange}/>
-                <NumField label="年間利用回数" value={av} onChange={v=>{setAv(v);setResults(null);}} unit="回" color={C.orange}/>
-                <NumField label="市場シェア" value={share} onChange={v=>{setShare(Math.min(100,v));setResults(null);}} unit="%" color={C.orange}/>
-                <div style={{background:"#0d1825",borderRadius:10,padding:"10px 12px",border:"1px solid #1a2b42"}}>
-                  <div style={{fontSize:9,color:"#2a4060",marginBottom:4}}>年商ベース（補正前）</div>
-                  <div style={{fontSize:18,fontWeight:900,color:C.orange}}>{yen(annualBase)}</div>
-                </div>
-              </div>
-            </Sec>
-
-            <Sec title="コスト設定">
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-                <NumField label="原価率（変動費率）" value={cr} onChange={v=>{setCr(Math.min(90,v));setResults(null);}} unit="%" color={C.orange}/>
-                <NumField label="スタッフ時給" value={wage} onChange={v=>{setWage(v);setResults(null);}} unit="円" prefix="¥" color={C.purple}/>
-                <NumField label="1日の総労働時間" value={hrs} onChange={v=>{setHrs(Math.min(24,v));setResults(null);}} unit="h" color={C.purple}/>
-                <NumField label="スタッフ数" value={staff} onChange={v=>{setStaff(v);setResults(null);}} unit="人" color={C.purple}/>
-                <NumField label="光熱費（月）" value={utility} onChange={v=>{setUtility(v);setResults(null);}} unit="円" prefix="¥" color={C.blue}/>
-                <NumField label="広告費（月）" value={ad} onChange={v=>{setAd(v);setResults(null);}} unit="円" prefix="¥" color={C.green}/>
-              </div>
-
-              <div style={{marginTop:10,padding:"10px 12px",background:"#0d1825",borderRadius:10,border:"1px solid #1a2b42"}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-                  <span style={{fontSize:11,color:"#3a5070"}}>月次固定費合計</span>
-                  <span style={{fontSize:16,fontWeight:900,color:"#f43f5e"}}>{yen(monthFixed)}</span>
-                </div>
-              </div>
-
-              <div style={{marginTop:10,padding:"10px 12px",background:"#0e1f10",borderRadius:10,border:"1px solid #1a3a1a"}}>
-                <div style={{fontSize:10,color:"#2a5030",marginBottom:3}}>損益分岐点（月次売上）</div>
-                <div style={{fontSize:20,fontWeight:900,color:"#34d399"}}>{yen(breakeven)}</div>
-              </div>
-            </Sec>
-
-            <Sec title="シミュレーション期間">
-              <div style={{display:"flex",gap:10,alignItems:"flex-end"}}>
-                <MonthSel value={startM} onChange={v=>{setStartM(v);setResults(null);}} label="開始月"/>
-                <span style={{color:"#1e3050",fontSize:18,paddingBottom:8}}>→</span>
-                <MonthSel value={endM}   onChange={v=>{setEndM(v);setResults(null);}}   label="終了月"/>
-              </div>
-            </Sec>
-
-            <button onClick={runSim} disabled={running || !mixOk} style={{
-              width:"100%",padding:"15px",marginTop:10,borderRadius:13,border:"none",
-              background:!mixOk||running?"#111827":"linear-gradient(90deg,#fb923c,#f43f5e,#a855f7)",
-              color:!mixOk||running?"#2a4060":"#fff",
-              fontSize:15,fontWeight:900,cursor:running||!mixOk?"not-allowed":"pointer",
-            }}>
-              {running?"⏳ 計算中…":"▶ シミュレーション実行"}
-            </button>
-            </>
-          )}
-
-          {tab==="result" && (
-            <>
-            {!results ? (
-              <div style={{textAlign:"center",padding:"48px 0",color:"#1e3050",fontSize:13}}>設定して実行してください</div>
-            ) : (
-              <>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:16}}>
-                {[
-                  {label:"期間売上合計",  val:totalRev, color:C.orange},
-                  {label:"期間利益合計",  val:totalProfit,  color:totalProfit>=0?C.green:"#f43f5e"},
-                  {label:"月平均利益",    val:avgMonthly,   color:avgMonthly>=0?C.green:"#f43f5e"},
-                  {label:"黒字月 / 全月", val:`${profitMonths} / ${results.length}ヶ月`, color:C.blue, isText:true},
-                ].map(({label,val,color,isText})=>(
-                  <div key={label} style={{background:"#0c1528",borderRadius:12,padding:"13px 12px",borderTop:`3px solid ${color}`}}>
-                    <div style={{fontSize:10,color:"#2a4060",marginBottom:3}}>{label}</div>
-                    <div style={{fontSize:isText?18:17,fontWeight:900,color}}>{isText?val:yen(val)}</div>
-                  </div>
-                ))}
-              </div>
-
-              <div style={{background:"#0c1528",borderRadius:13,padding:"14px 12px",marginTop:10}}>
-                <div style={{display:"flex",gap:2,alignItems:"flex-end",height:80,marginBottom:10}}>
-                  {results.map((r,i)=>{
-                    const h = Math.round((r.rev/maxRev)*72);
-                    return (
-                      <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
-                        <div style={{fontSize:8,color:r.profit>=0?"#34d399":"#f43f5e",fontWeight:700,whiteSpace:"nowrap"}}>
-                          {r.profit>=0?"+":""}{yen(r.profit).replace("万円","万")}
-                        </div>
-                        <div style={{width:"100%",height:h, background:`linear-gradient(to top,${r.profit>=0?"#34d399":"#f43f5e"},#fb923c)`, borderRadius:"3px 3px 0 0",minHeight:3}}/>
-                        <div style={{fontSize:8,color:"#2a4060"}}>{r.mName}</div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <button onClick={runSim} style={{
-                width:"100%",padding:"12px",marginTop:12,borderRadius:12,border:"1px solid #1e3050",
-                background:"transparent",color:"#3a5070",fontSize:13,fontWeight:700,cursor:"pointer",
-              }}>🔄 もう一度シミュレーション</button>
-              </>
-            )}
-            </>
-          )}
-          </div>
-        </div>
-      );
-    }
-
-    function Sec({title,children}) { return (<div style={{marginTop:20}}><div style={{fontSize:9,letterSpacing:3,color:"#1e3050",marginBottom:8}}>{title}</div>{children}</div>); }
-    function Pill({active,onClick,children,color="#fb923c"}) { return (<button onClick={onClick} style={{padding:"5px 14px",borderRadius:999,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,background:active?`${color}22`:"#0c1528",color:active?color:"#1e3050",outline:active?`1.5px solid ${color}`:"none"}}>{children}</button>); }
-    function MonthSel({value,onChange,label}) { return (<div style={{flex:1}}><div style={{fontSize:10,color:"#2a4060",marginBottom:4}}>{label}</div><select value={value} onChange={e=>onChange(+e.target.value)} style={{width:"100%",padding:"9px 10px",borderRadius:9,border:"1px solid #1a2b42",background:"#0c1528",color:"#dce8f5",fontSize:14}}>{ML.map((ml,i)=><option key={i} value={i+1}>{ml}</option>)}</select></div>); }
-
-    // ReactアプリをHTMLにマウント
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<App />);
-  </script>
-</body>
-</html>
+        {res.map((r,i)=><div key={i} style={{background:"#0d1825",padding:10,marginBottom:8,borderRadius:8,display:"flex",justifyContent:"space-between"}}>
+          <span>{r.mName}</span><span style={{color:"#fb923c"}}>売上:{yen(r.rev)}</span><span style={{color:r.profit>=0?"#34d399":"#f43f5e"}}>利益:{yen(r.profit)}</span>
+        </div>)}
+      </div>}
+    </div>
+  );
+}
+const root = ReactDOM.createRoot(document.getElementById('root')); root.render(<App />);
+</script></body></html>
