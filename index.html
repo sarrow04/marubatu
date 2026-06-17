@@ -9,21 +9,23 @@
     .container { max-width: 600px; margin: 0 auto; padding: 15px; }
     .card { background: #0c1528; border-radius: 10px; padding: 15px; margin-bottom: 15px; border: 1px solid #1a2b42; }
     .title { color: #fb923c; text-align: center; border-bottom: 1px solid #1a2b42; padding-bottom: 15px; }
-    .btn { padding: 10px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px; box-sizing: border-box; font-size: 14px; }
+    .btn { padding: 10px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px; box-sizing: border-box; font-size: 14px; transition: all 0.2s; }
     .btn-primary { background: #fb923c; color: #000; }
     .btn-outline { background: transparent; border: 1px solid #fb923c; color: #fb923c; }
     .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .input-group { display: flex; flex-direction: column; margin-bottom: 10px; }
     .input-group label { font-size: 11px; color: #8ba3c7; margin-bottom: 3px; }
-    .input-group input, .input-group select { background: #070e1c; color: #fb923c; border: 1px solid #1a2b42; padding: 8px; border-radius: 5px; font-size: 16px; font-weight: bold; width: 100%; box-sizing: border-box; }
-    table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 10px; }
-    th, td { padding: 8px 5px; text-align: right; border-bottom: 1px solid #1a2b42; }
+    .input-group input, .input-group select { background: #070e1c; color: #fb923c; border: 1px solid #1a2b42; padding: 8px; border-radius: 5px; font-size: 16px; font-weight: bold; width: 100%; box-sizing: border-box; outline: none; }
+    
+    /* テーブルの装飾 */
+    table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 10px; white-space: nowrap; }
+    th, td { padding: 8px 4px; text-align: right; border-bottom: 1px solid #1a2b42; }
     th { color: #8ba3c7; font-weight: normal; }
     .hidden { display: none !important; }
     
-    /* ラジオボタンの装飾 */
-    .radio-label { display: block; padding: 10px; background: #070e1c; border: 1px solid #1a2b42; margin-bottom: 5px; border-radius: 5px; cursor: pointer; font-size: 14px; }
+    .radio-label { display: block; padding: 10px; background: #070e1c; border: 1px solid #1a2b42; margin-bottom: 5px; border-radius: 5px; cursor: pointer; font-size: 13px; line-height: 1.4; }
     .radio-label.active { background: #fb923c22; border-color: #fb923c; color: #fb923c; font-weight: bold; }
+    .note { font-size: 10px; color: #64748b; font-weight: normal; margin-top: 3px; }
   </style>
 </head>
 <body>
@@ -46,11 +48,33 @@
 
       <div class="card">
         <div style="font-size:12px; color:#8ba3c7; margin-bottom:10px;">3. 業種テンプレート</div>
-        <div class="grid" id="preset-container"></div>
+        <div class="grid" id="preset-container" style="grid-template-columns: repeat(3, 1fr);"></div>
       </div>
 
       <div class="card">
-        <div style="font-size:12px; color:#8ba3c7; margin-bottom:10px;">4. 詳細数値を調整</div>
+        <div style="font-size:12px; color:#8ba3c7; margin-bottom:10px;">4. 営業期間</div>
+        <div class="grid">
+          <div class="input-group">
+            <label>開始月</label>
+            <select id="v-start-m">
+              <option value="1">1月</option><option value="2">2月</option><option value="3">3月</option><option value="4" selected>4月</option>
+              <option value="5">5月</option><option value="6">6月</option><option value="7">7月</option><option value="8">8月</option>
+              <option value="9">9月</option><option value="10">10月</option><option value="11">11月</option><option value="12">12月</option>
+            </select>
+          </div>
+          <div class="input-group">
+            <label>終了月</label>
+            <select id="v-end-m">
+              <option value="1">1月</option><option value="2">2月</option><option value="3">3月</option><option value="4">4月</option>
+              <option value="5">5月</option><option value="6">6月</option><option value="7">7月</option><option value="8">8月</option>
+              <option value="9" selected>9月</option><option value="10">10月</option><option value="11">11月</option><option value="12">12月</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="font-size:12px; color:#8ba3c7; margin-bottom:10px;">5. 詳細数値を調整</div>
         <div class="grid">
           <div class="input-group"><label>客単価 (円)</label><input type="number" id="v-price" value="1100"></div>
           <div class="input-group"><label>原価率 (%)</label><input type="number" id="v-cr" value="45"></div>
@@ -73,46 +97,75 @@
   </div>
 
   <script>
-    // データ定義
+    // ── 立地データ（雨天時の客足影響 rain係数 を追加） ──
     const LOCS = {
-      "阿佐ヶ谷": [{name:"パールセンター", rent:22, ff:1.2, wk:1.12}, {name:"スターロード", rent:14, ff:0.75, wk:1.05}, {name:"住宅街", rent:9, ff:0.45, wk:0.95}],
-      "高円寺": [{name:"高円寺商店街", rent:18, ff:1.1, wk:1.25}, {name:"住宅街", rent:10, ff:0.55, wk:0.9}],
-      "荻窪": [{name:"駅前商圏", rent:24, ff:1.3, wk:1.18}, {name:"住宅街", rent:11, ff:0.5, wk:0.92}],
-      "中野": [{name:"ブロードウェイ", rent:26, ff:1.5, wk:1.3}, {name:"住宅街", rent:13, ff:0.6, wk:1.0}],
-      "吉祥寺": [{name:"サンロード", rent:28, ff:1.35, wk:1.28}, {name:"井の頭公園", rent:30, ff:1.4, wk:1.35}, {name:"住宅街", rent:14, ff:0.55, wk:0.88}]
+      "阿佐ヶ谷": [
+        {name:"パールセンター", rent:22, ff:1.2, wk:1.12, rain:0.95, note:"アーケードで雨に強い"}, 
+        {name:"スターロード", rent:14, ff:0.75, wk:1.05, rain:0.55, note:"居酒屋向き。雨天激減"}, 
+        {name:"住宅街", rent:9, ff:0.45, wk:0.95, rain:0.7, note:"固定客。低家賃"}
+      ],
+      "高円寺": [
+        {name:"高円寺商店街", rent:18, ff:1.1, wk:1.25, rain:0.75, note:"週末遠方客多い"}, 
+        {name:"住宅街", rent:10, ff:0.55, wk:0.9, rain:0.65, note:"生活密着。常連率高め"}
+      ],
+      "荻窪": [
+        {name:"駅前商圏", rent:24, ff:1.3, wk:1.18, rain:0.8, note:"ターミナル・乗換客"}, 
+        {name:"住宅街", rent:11, ff:0.5, wk:0.92, rain:0.68, note:"落ち着いたランチ需要"}
+      ],
+      "中野": [
+        {name:"ブロードウェイ", rent:26, ff:1.5, wk:1.3, rain:0.85, note:"オタク層の聖地。集客大"}, 
+        {name:"住宅街", rent:13, ff:0.6, wk:1.0, rain:0.7, note:"オフィスワーカーも"}
+      ],
+      "吉祥寺": [
+        {name:"サンロード", rent:28, ff:1.35, wk:1.28, rain:0.88, note:"アーケード。回遊客"}, 
+        {name:"井の頭公園", rent:30, ff:1.4, wk:1.35, rain:0.65, note:"おしゃれ激戦区"}, 
+        {name:"住宅街", rent:14, ff:0.55, wk:0.88, rain:0.72, note:"高所得ファミリー層"}
+      ]
     };
 
+    // ── テンプレート（その他を追加） ──
     const PRESETS = [
       {name:"☕ カフェ", p:1100, ur:40, av:52, cr:45},
       {name:"🍜 ラーメン", p:950, ur:50, av:36, cr:48},
       {name:"🍕 ピザ", p:3500, ur:80, av:24, cr:55},
-      {name:"🍺 居酒屋", p:3200, ur:35, av:18, cr:52}
+      {name:"🍺 居酒屋", p:3200, ur:35, av:18, cr:52},
+      {name:"✏️ その他", p:2000, ur:20, av:24, cr:50} // 新規追加
     ];
 
-    // 月ごとの集客補正係数
-    const MW = { 4:1.05, 5:1.08, 6:0.92, 7:0.88, 8:0.85, 9:0.90 };
-    let selLocIdx = 0;
+    // ── 気候データ（月ごとの集客力・降水確率・気温） ──
+    const M_DATA = {
+      1: { tm: 0.82, rainP: 0.15, temp: "5℃ (寒冬)" },
+      2: { tm: 0.85, rainP: 0.18, temp: "6℃ (寒冬)" },
+      3: { tm: 0.95, rainP: 0.25, temp: "11℃ (春先)" },
+      4: { tm: 1.05, rainP: 0.24, temp: "16℃ (春爛漫)" },
+      5: { tm: 1.08, rainP: 0.22, temp: "21℃ (初夏)" },
+      6: { tm: 0.92, rainP: 0.45, temp: "23℃ (梅雨)" },
+      7: { tm: 0.88, rainP: 0.28, temp: "27℃ (猛暑)" },
+      8: { tm: 0.85, rainP: 0.25, temp: "29℃ (台風)" },
+      9: { tm: 0.90, rainP: 0.30, temp: "25℃ (残暑)" },
+      10:{ tm: 1.05, rainP: 0.18, temp: "19℃ (秋晴)" },
+      11:{ tm: 1.00, rainP: 0.18, temp: "13℃ (晩秋)" },
+      12:{ tm: 0.88, rainP: 0.17, temp: "8℃ (初冬)" }
+    };
 
+    let selLocIdx = 0;
     const yen = (n) => Math.round(n).toLocaleString() + "円";
     const el = (id) => document.getElementById(id);
     const val = (id) => Number(el(id).value);
 
-    // 画面の初期化
+    // 画面初期化
     window.onload = () => {
       const stSelect = el("station");
-      for(let s in LOCS) {
-        stSelect.innerHTML += `<option value="${s}">${s}</option>`;
-      }
+      for(let s in LOCS) stSelect.innerHTML += `<option value="${s}">${s}</option>`;
       
       const preCont = el("preset-container");
       PRESETS.forEach((p, i) => {
-        preCont.innerHTML += `<button class="btn btn-outline" style="margin-top:0;" onclick="applyPreset(${i})">${p.name}</button>`;
+        preCont.innerHTML += `<button class="btn btn-outline" style="margin-top:0; font-size:12px; padding:8px 4px;" onclick="applyPreset(${i})">${p.name}</button>`;
       });
-
       updateLocs();
     };
 
-    // 立地リストの更新
+    // 立地の更新
     function updateLocs() {
       const st = el("station").value;
       const cont = el("loc-container");
@@ -121,13 +174,15 @@
       LOCS[st].forEach((l, i) => {
         cont.innerHTML += `
           <label class="radio-label ${i===0?'active':''}" id="lbl-loc-${i}" onclick="selectLoc(${i})">
-            <input type="radio" name="loc" ${i===0?'checked':''} style="margin-right:10px;">
-            ${l.name} (家賃: ${l.rent}万円)
+            <div style="display:flex; align-items:center;">
+              <input type="radio" name="loc" ${i===0?'checked':''} style="margin-right:10px;">
+              <span>${l.name} (家賃: ${l.rent}万円)</span>
+            </div>
+            <div class="note">${l.note}</div>
           </label>`;
       });
     }
 
-    // 立地の選択
     function selectLoc(idx) {
       selLocIdx = idx;
       const st = el("station").value;
@@ -137,50 +192,64 @@
       });
     }
 
-    // プリセットの反映
     function applyPreset(idx) {
       const p = PRESETS[idx];
-      el("v-price").value = p.p;
-      el("v-cr").value = p.cr;
-      el("v-ur").value = p.ur;
-      el("v-av").value = p.av;
+      el("v-price").value = p.p; el("v-cr").value = p.cr;
+      el("v-ur").value = p.ur; el("v-av").value = p.av;
     }
 
-    // タブの切り替え
     function switchTab(t) {
       if(t === 'setup') {
-        el("view-setup").classList.remove("hidden");
-        el("view-result").classList.add("hidden");
-        el("btn-tab-setup").className = "btn btn-primary";
-        el("btn-tab-result").className = "btn btn-outline";
+        el("view-setup").classList.remove("hidden"); el("view-result").classList.add("hidden");
+        el("btn-tab-setup").className = "btn btn-primary"; el("btn-tab-result").className = "btn btn-outline";
       } else {
-        el("view-setup").classList.add("hidden");
-        el("view-result").classList.remove("hidden");
-        el("btn-tab-setup").className = "btn btn-outline";
-        el("btn-tab-result").className = "btn btn-primary";
+        el("view-setup").classList.add("hidden"); el("view-result").classList.remove("hidden");
+        el("btn-tab-setup").className = "btn btn-outline"; el("btn-tab-result").className = "btn btn-primary";
       }
-      window.scrollTo(0, 0); // 画面の一番上に戻る
+      window.scrollTo(0, 0);
     }
 
-    // シミュレーション計算
+    // ── メインシミュレーション処理 ──
     function runSim() {
       const st = el("station").value;
       const loc = LOCS[st][selLocIdx];
       
       const price = val("v-price"), cr = val("v-cr"), ur = val("v-ur"), av = val("v-av");
       const staff = val("v-staff"), wage = val("v-wage"), hrs = val("v-hrs"), fixed = val("v-fixed");
+      
+      const startM = val("v-start-m");
+      const endM = val("v-end-m");
+
+      // 指定された月の配列を作成（年またぎ対応）
+      let monthsToRun = [];
+      let cur = startM;
+      while(true) {
+        monthsToRun.push(cur);
+        if (cur === endM) break;
+        cur = cur === 12 ? 1 : cur + 1;
+        if (monthsToRun.length > 24) break; // 無限ループ防止（最大24ヶ月）
+      }
 
       let totalRev = 0, totalProfit = 0;
       let tableHTML = "";
 
-      for(let m = 4; m <= 9; m++) {
-        const days = new Date(2025, m, 0).getDate();
+      monthsToRun.forEach(m => {
+        const days = new Date(2025, m, 0).getDate(); // その月の日数
+        const mData = M_DATA[m];
+        
         let mRev = 0;
+        let rainDays = 0;
         
         for(let d = 1; d <= days; d++) {
-          const isWk = new Date(2025, m-1, d).getDay() % 6 === 0;
+          const isWk = new Date(2025, m-1, d).getDay() % 6 === 0; // 週末判定
+          const isRain = Math.random() < mData.rainP; // 降水確率による天候ガチャ
+          if(isRain) rainDays++;
+
+          // 基礎売上 ＝ 仮想人口1万人 × 利用率 × 来店回数 × 単価 ÷ 365
           const base = (10000 * (ur/100) * av * price * 0.03) / 365;
-          mRev += base * loc.ff * MW[m] * (isWk ? loc.wk : 1.0);
+          
+          // 立地補正 × 月気候補正 × 週末補正 × 天候補正(雨なら立地のrain係数)
+          mRev += base * loc.ff * mData.tm * (isWk ? loc.wk : 1.0) * (isRain ? loc.rain : 1.0);
         }
         
         const fRent = loc.rent * 10000;
@@ -192,15 +261,29 @@
         totalProfit += mProfit;
 
         const pColor = mProfit >= 0 ? "#34d399" : "#f43f5e";
-        tableHTML += `<tr><td style="text-align:center;color:#fff;">${m}月</td><td style="color:#fb923c;">${yen(mRev)}</td><td>${yen(vCogs)}</td><td>${yen(fLabor)}</td><td style="font-weight:bold;color:${pColor};">${yen(mProfit)}</td></tr>`;
-      }
+        const sunnyDays = days - rainDays;
+
+        tableHTML += `
+          <tr style="border-bottom: 1px solid #152040;">
+            <td style="text-align:center; color:#fff;">
+              <div style="font-size:13px; font-weight:bold;">${m}月</div>
+              <div style="font-size:9px; color:#8ba3c7;">${mData.temp}</div>
+            </td>
+            <td style="text-align:center; font-size:10px;">☀️${sunnyDays}日<br>☔️${rainDays}日</td>
+            <td style="color:#fb923c; font-weight:bold;">${yen(mRev)}</td>
+            <td style="color:#8ba3c7;">${yen(vCogs)}</td>
+            <td style="color:#8ba3c7;">${yen(fLabor)}</td>
+            <td style="font-weight:bold; color:${pColor};">${yen(mProfit)}</td>
+          </tr>
+        `;
+      });
 
       const totalColor = totalProfit >= 0 ? "#34d399" : "#f43f5e";
 
       el("result-content").innerHTML = `
         <div class="grid" style="margin-bottom:15px;">
           <div class="card" style="margin:0; border-top:3px solid #fb923c;">
-            <div style="font-size:11px; color:#8ba3c7;">期間売上合計</div>
+            <div style="font-size:11px; color:#8ba3c7;">期間売上合計 (${monthsToRun.length}ヶ月)</div>
             <div style="font-size:18px; font-weight:bold; color:#fb923c;">${yen(totalRev)}</div>
           </div>
           <div class="card" style="margin:0; border-top:3px solid ${totalColor};">
@@ -208,10 +291,14 @@
             <div style="font-size:18px; font-weight:bold; color:${totalColor};">${yen(totalProfit)}</div>
           </div>
         </div>
-        <div class="card" style="overflow-x:auto;">
-          <div style="font-size:12px; color:#8ba3c7; margin-bottom:10px;">月次データ (家賃・固定費込)</div>
+        
+        <div class="card" style="overflow-x:auto; padding:10px 5px;">
+          <div style="font-size:12px; color:#8ba3c7; margin-bottom:10px; padding-left:10px;">月次シミュレーション詳細</div>
           <table>
-            <thead><tr><th>月</th><th>売上</th><th>原価</th><th>人件費</th><th>利益</th></tr></thead>
+            <thead><tr>
+              <th style="text-align:center;">月/気候</th><th style="text-align:center;">天気</th>
+              <th>売上</th><th>原価</th><th>人件費</th><th>利益</th>
+            </tr></thead>
             <tbody>${tableHTML}</tbody>
           </table>
         </div>
