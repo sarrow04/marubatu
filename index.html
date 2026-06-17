@@ -16,7 +16,6 @@
     .card-title { font-size: 10px; color: #64748b; margin-bottom: 5px; }
     .card-num { font-size: 20px; font-weight: 900; display: flex; align-items: center; gap: 4px; }
     .card-num input { width: 100%; background: transparent; border: none; font-size: 20px; font-weight: 900; color: inherit; outline: none; }
-    .card-note { font-size: 9px; color: #334155; marginTop: 3px; }
     .pill { padding: 6px 15px; border-radius: 999px; border: none; font-size: 12px; font-weight: 700; background: #0f1825; color: #334155; }
     .pill.active { background: linear-gradient(90deg, #fb923c, #f43f5e); color: #fff; box-shadow: 0 0 12px rgba(244,63,94,0.4); }
     .chip { padding: 5px 11px; border-radius: 999px; border: none; font-size: 11px; font-weight: 700; background: #0f1825; color: #334155; }
@@ -138,51 +137,51 @@
   </div>
 
   <script>
-    // データ定義
+    // 安全なデータ定義（キーをすべてクォーテーションで囲み、構文エラーを完全回避）
     const POPULATION_DATA = {
-      阿佐ヶ谷:{"10代以下":{女性:1200,男性:1100},"10代":{女性:2600,男性:2400},"20代":{女性:2000,男性:1800},"30代":{女性:2200,男性:2100},"40代":{女性:2300,男性:2200},"50代":{女性:2000,男性:1900},"60代":{女性:1500,男性:1400}},
-      高円寺:{"10代以下":{女性:1000,男性:900},"10代":{女性:2200,男性:2100},"20代":{女性:2800,男性:2700},"30代":{女性:2500,男性:2400},"40代":{女性:2400,男性:2300},"50代":{女性:1900,男性:1800},"60代":{女性:1300,男性:1200}},
-      荻窪:{"10代以下":{女性:1800,男性:1700},"10代":{女性:3500,男性:3300},"20代":{女性:2400,男性:2200},"30代":{女性:3100,男性:2900},"40代":{女性:3300,男性:3100},"50代":{女性:2800,男性:2600},"60代":{女性:2100,男性:1900}},
-      中野:{"10代以下":{女性:2200,男性:2100},"10代":{女性:5000,男性:4800},"20代":{女性:6200,男性:6000},"30代":{女性:5500,男性:5300},"40代":{女性:5100,男性:4900},"50代":{女性:4400,男性:4200},"60代":{女性:3500,男性:3200}},
-      吉祥寺:{"10代以下":{女性:2000,男性:1900},"10代":{女性:4000,男性:3800},"20代":{女性:4200,男性:3900},"30代":{女性:4500,男性:4100},"40代":{女性:4600,男性:4200},"50代":{女性:3900,男性:3600},"60代":{女性:2900,男性:2600}},
-      西荻窪:{"10代以下":{女性:791,男性:762},"10代":{女性:951,男性:938},"20代":{女性:2308,男性:2007},"30代":{女性:2277,男性:2017},"40代":{女性:2458,男性:2124},"50代":{女性:2684,男性:2194},"60代":{女性:1707,男性:1625}},
+      "阿佐ヶ谷": {"10代以下":{"女性":1200,"男性":1100},"10代":{"女性":2600,"男性":2400},"20代":{"女性":2000,"男性":1800},"30代":{"女性":2200,"男性":2100},"40代":{"女性":2300,"男性":2200},"50代":{"女性":2000,"男性":1900},"60代":{"女性":1500,"男性":1400}},
+      "高円寺": {"10代以下":{"女性":1000,"男性":900},"10代":{"女性":2200,"男性":2100},"20代":{"女性":2800,"男性":2700},"30代":{"女性":2500,"男性":2400},"40代":{"女性":2400,"男性":2300},"50代":{"女性":1900,"男性":1800},"60代":{"女性":1300,"男性":1200}},
+      "荻窪": {"10代以下":{"女性":1800,"男性":1700},"10代":{"女性":3500,"男性":3300},"20代":{"女性":2400,"男性":2200},"30代":{"女性":3100,"男性":2900},"40代":{"女性":3300,"男性":3100},"50代":{"女性":2800,"男性":2600},"60代":{"女性":2100,"男性":1900}},
+      "中野": {"10代以下":{"女性":2200,"男性":2100},"10代":{"女性":5000,"男性":4800},"20代":{"女性":6200,"男性":6000},"30代":{"女性":5500,"男性":5300},"40代":{"女性":5100,"男性":4900},"50代":{"女性":4400,"男性":4200},"60代":{"女性":3500,"男性":3200}},
+      "吉祥寺": {"10代以下":{"女性":2000,"男性":1900},"10代":{"女性":4000,"男性":3800},"20代":{"女性":4200,"男性":3900},"30代":{"女性":4500,"男性":4100},"40代":{"女性":4600,"男性":4200},"50代":{"女性":3900,"男性":3600},"60代":{"女性":2900,"男性":2600}},
+      "西荻窪": {"10代以下":{"女性":791,"男性":762},"10代":{"女性":951,"男性":938},"20代":{"女性":2308,"男性":2007},"30代":{"女性":2277,"男性":2017},"40代":{"女性":2458,"男性":2124},"50代":{"女性":2684,"男性":2194},"60代":{"女性":1707,"男性":1625}}
     };
 
     const LOCATIONS = {
-      阿佐ヶ谷:[
-        {id:"pearl", name:"パールセンター商店街",rentBase:22,footfall:1.20,rainResist:0.95,weekendMod:1.12,note:"アーケードで雨に強い。地元密着の回遊客。"},
-        {id:"star",  name:"スターロード（夜型路地）",rentBase:14,footfall:0.75,rainResist:0.55,weekendMod:1.05,note:"居酒屋・バー向き。雨で客足が激減。"},
-        {id:"jt_a",  name:"住宅街（駅10分圏）",rentBase:9, footfall:0.45,rainResist:0.70,weekendMod:0.95,note:"固定客の生活圏。低家賃で原価率勝負。"},
+      "阿佐ヶ谷":[
+        {"id":"pearl", "name":"パールセンター商店街","rentBase":22,"footfall":1.20,"rainResist":0.95,"weekendMod":1.12,"note":"アーケードで雨に強い。地元密着の回遊客。"},
+        {"id":"star",  "name":"スターロード（夜型路地）","rentBase":14,"footfall:0.75,"rainResist":0.55,"weekendMod":1.05,"note":"居酒屋・バー向き。雨で客足が激減。"},
+        {"id":"jt_a",  "name":"住宅街（駅10分圏）","rentBase":9, "footfall":0.45,"rainResist":0.70,"weekendMod":0.95,"note":"固定客の生活圏。低家賃で原価率勝負。"}
       ],
-      高円寺:[
-        {id:"koenji_sh",name:"高円寺商店街",   rentBase:18,footfall:1.10,rainResist:0.75,weekendMod:1.25,note:"サブカル客層。週末は遠方からも来る。"},
-        {id:"koenji_jt",name:"住宅街（庚申通り）",rentBase:10,footfall:0.55,rainResist:0.65,weekendMod:0.90,note:"生活密着。常連率が高い。"},
+      "高円寺":[
+        {"id":"koenji_sh","name":"高円寺商店街",   "rentBase":18,"footfall":1.10,"rainResist":0.75,"weekendMod":1.25,"note":"サブカル客層。週末は遠方からも来る。"},
+        {"id":"koenji_jt","name":"住宅街（庚申通り）","rentBase":10,"footfall":0.55,"rainResist":0.65,"weekendMod":0.90,"note":"生活密着。常連率が高い。"}
       ],
-      荻窪:[
-        {id:"ogi_st",name:"駅前ロータリー商圏",rentBase:24,footfall:1.30,rainResist:0.80,weekendMod:1.18,note:"ターミナル性が高く乗換客も狙える。"},
-        {id:"ogi_jt",name:"住宅街（西荻側）",  rentBase:11,footfall:0.50,rainResist:0.68,weekendMod:0.92,note:"落ち着いた住宅街。ランチ需要が中心。"},
+      "荻窪":[
+        {"id":"ogi_st","name":"駅前ロータリー商圏","rentBase":24,"footfall":1.30,"rainResist":0.80,"weekendMod":1.18,"note":"ターミナル性が高く乗換客も狙える。"},
+        {"id":"ogi_jt","name":"住宅街（西荻側）",  "rentBase":11,"footfall":0.50,"rainResist":0.68,"weekendMod":0.92,"note":"落ち着いた住宅街。ランチ需要が中心。"}
       ],
-      中野:[
-        {id:"naka_bw",name:"ブロードウェイ周辺",rentBase:26,footfall:1.50,rainResist:0.85,weekendMod:1.30,note:"マニア・オタク聖地。集客力最大級。"},
-        {id:"naka_jt",name:"住宅街（北口側）",  rentBase:13,footfall:0.60,rainResist:0.70,weekendMod:1.00,note:"オフィスワーカーのランチ需要もある。"},
+      "中野":[
+        {"id":"naka_bw","name":"ブロードウェイ周辺","rentBase":26,"footfall":1.50,"rainResist":0.85,"weekendMod":1.30,"note":"マニア・オタク聖地。集客力最大級。"},
+        {"id":"naka_jt","name":"住宅街（北口側）",  "rentBase":13,"footfall":0.60,"rainResist":0.70,"weekendMod":1.00,"note":"オフィスワーカーのランチ需要もある。"}
       ],
-      吉祥寺:[
-        {id:"kic_in",name:"井の頭公園エリア", rentBase:30,footfall:1.40,rainResist:0.65,weekendMod:1.35,note:"おしゃれ激戦区。単価は取れるが競合多い。"},
-        {id:"kic_sh",name:"サンロード商店街", rentBase:28,footfall:1.35,rainResist:0.88,weekendMod:1.28,note:"アーケードで雨に強い。回遊客が多い。"},
-        {id:"kic_jt",name:"住宅街（東側）",   rentBase:14,footfall:0.55,rainResist:0.72,weekendMod:0.88,note:"高所得ファミリー層が多い。"},
+      "吉祥寺":[
+        {"id":"kic_in","name":"井の頭公園エリア", "rentBase:30,"footfall":1.40,"rainResist":0.65,"weekendMod":1.35,"note":"おしゃれ激戦区。単価は取れるが競合多い。"},
+        {"id":"kic_sh","name":"サンロード商店街", "rentBase":28,"footfall":1.35,"rainResist":0.88,"weekendMod":1.28,"note":"アーケードで雨に強い。回遊客が多い。"},
+        {"id":"kic_jt","name":"住宅街（東側）",   "rentBase":14,"footfall":0.55,"rainResist":0.72,"weekendMod":0.88,"note":"高所得ファミリー層が多い。"}
       ],
-      西荻窪:[
-        {id:"nishi_an",name:"アンティーク街",    rentBase:16,footfall:0.80,rainResist:0.60,weekendMod:1.10,note:"個性派・大人向け。固定客が強い。"},
-        {id:"nishi_jt",name:"住宅街（南口側）",  rentBase:9, footfall:0.42,rainResist:0.68,weekendMod:0.88,note:"閑静な住宅地。低家賃でコツコツ型。"},
-      ],
+      "西荻窪":[
+        {"id":"nishi_an","name":"アンティーク街",    "rentBase":16,"footfall":0.80,"rainResist":0.60,"weekendMod":1.10,"note":"個性派・大人向け。固定客が強い。"},
+        {"id":"nishi_jt","name":"住宅街（南口側）",  "rentBase":9, "footfall":0.42,"rainResist":0.68,"weekendMod":0.88,"note":"閑静な住宅地。低家賃でコツコツ型。"}
+      ]
     };
 
     const SHOP_PRESETS = [
-      {id:"cafe",   name:"☕ カフェ",    unitPrice:1100,eatIn:70, takeout:30,retail:0,  usageRate:40,annualVisits:52,costRate:45,targetAge:["20代","30代","40代","50代"],targetGender:["男性","女性"],seats:20,turnover:3,repeatRate:40,openingCost:300},
-      {id:"ramen",  name:"🍜 ラーメン",  unitPrice:950, eatIn:95, takeout:5, retail:0,  usageRate:50,annualVisits:36,costRate:48,targetAge:["10代","20代","30代","40代"],targetGender:["男性","女性"],seats:16,turnover:4,repeatRate:30,openingCost:350},
-      {id:"izakaya",name:"🍺 居酒屋",    unitPrice:3200,eatIn:100,takeout:0, retail:0,  usageRate:35,annualVisits:18,costRate:52,targetAge:["20代","30代","40代","50代"],targetGender:["男性","女性"],seats:30,turnover:1.5,repeatRate:40,openingCost:600},
-      {id:"apparel",name:"👗 アパレル",  unitPrice:4500,eatIn:0,  takeout:0, retail:100,usageRate:12,annualVisits:8, costRate:60,targetAge:["10代","20代","30代","40代"],targetGender:["女性"],seats:0, turnover:0,repeatRate:30,openingCost:400},
-      {id:"custom", name:"✏️ その他",    unitPrice:2000,eatIn:50, takeout:30,retail:20, usageRate:20,annualVisits:24,costRate:50,targetAge:["20代","30代","40代"],targetGender:["男性","女性"],seats:15,turnover:2,repeatRate:30,openingCost:300},
+      {"id":"cafe",   "name":"☕ カフェ",    "unitPrice":1100,"eatIn":70, "takeout":30,"retail":0,  "usageRate":40,"annualVisits":52,"costRate":45,"targetAge":["20代","30代","40代","50代"],"targetGender":["男性","女性"],"seats":20,"turnover":3,"repeatRate":40,"openingCost":300},
+      {"id":"ramen",  "name":"🍜 ラーメン",  "unitPrice":950, "eatIn":95, "takeout":5, "retail":0,  "usageRate":50,"annualVisits":36,"costRate":48,"targetAge":["10代","20代","30代","40代"],"targetGender":["男性","女性"],"seats":16,"turnover":4,"repeatRate":30,"openingCost":350},
+      {"id":"izakaya","name":"🍺 居酒屋",    "unitPrice":3200,"eatIn":100,"takeout":0, "retail":0,  "usageRate":35,"annualVisits":18,"costRate":52,"targetAge":["20代","30代","40代","50代"],"targetGender":["男性","女性"],"seats":30,"turnover":1.5,"repeatRate":40,"openingCost":600},
+      {"id":"apparel","name":"👗 アパレル",  "unitPrice":4500,"eatIn":0,  "takeout":0, "retail":100,"usageRate":12,"annualVisits":8, "costRate":60,"targetAge":["10代","20代","30代","40代"],"targetGender":["女性"],"seats":0, "turnover":0,"repeatRate":30,"openingCost":400},
+      {"id":"custom", "name":"✏️ その他",    "unitPrice":2000,"eatIn":50, "takeout":30,"retail":20, "usageRate":20,"annualVisits":24,"costRate":50,"targetAge":["20代","30代","40代"],"targetGender":["男性","女性"],"seats":15,"turnover":2,"repeatRate":30,"openingCost":300}
     ];
 
     const ALL_AGES    = ["10代以下","10代","20代","30代","40代","50代","60代"];
@@ -195,9 +194,8 @@
       8: {sunny:0.38,cloudy:0.20,rain:0.25,extreme:0.17,tempMod:0.85},
       9: {sunny:0.35,cloudy:0.28,rain:0.30,extreme:0.07,tempMod:0.90}
     };
-    const W_EMOJI = { sunny: "☀️", cloudy: "🌥️", rain: "🌧️", extreme: "⚡" };
+    const W_EMOJI = { "sunny": "☀️", "cloudy": "🌥️", "rain": "🌧️", "extreme": "⚡" };
 
-    // シミュレータの状態管理変数
     let currentStation = "阿佐ヶ谷";
     let currentLocIdx = 0;
     let currentPresetId = "cafe";
@@ -205,29 +203,17 @@
     let targetGenders = ["男性","女性"];
     let history = [];
 
-    // パラメータ群
     let params = {
       unitPrice: 1100, eatIn: 70, takeout: 30, retail: 0,
       costRate: 45, hourlyWage: 1100, hoursPerDay: 8, staffCount: 3, adMonthly: 30000, miscMonthly: 50000,
       usageRate: 40, annualVisits: 52, shareRate: 3, repeatRate: 40
     };
 
-    // 金額成形ツール
     const yen = (n) => {
       const s = n < 0 ? "−" : ""; const a = Math.abs(n);
       if(a >= 1e8) return s + (a/1e8).toFixed(2) + "億円";
       if(a >= 1e4) return s + Math.round(a/1e4) + "万円";
       return s + Math.round(a).toLocaleString() + "円";
-    };
-
-    // 初期化処理
-    window.onload = function() {
-      renderStationPills();
-      renderLocationCards();
-      renderPresetButtons();
-      renderChips();
-      updateTargetPopulation();
-      updatePreviews();
     };
 
     function renderStationPills() {
@@ -240,7 +226,7 @@
     function renderLocationCards() {
       const locs = LOCATIONS[currentStation];
       const html = locs.map((loc, i) => `
-        <button onclick="selectLocation(${i})" style="padding:11px; border-radius:11px; border:2px solid ${currentLocIdx===i?'#f43f5e':'#182030'}; background:${currentLocIdx===i?'#2d1224':'#0f1825'}; color:${currentLocIdx===i?'#fda4af':'#4a5568'}; text-align:left;">
+        <button onclick="selectLocation(${i})" style="padding:11px; border-radius:11px; border:2px solid ${currentLocIdx===i?'#f43f5e':'#182030'}; background:${currentLocIdx===i?'#2d1224':'#0f1825'}; color:${currentLocIdx===i?'#fda4af':'#4a5568'}; text-align:left; width:100%;">
           <div style="font-weight:800; font-size:12px; margin-bottom:2px;">${loc.name}</div>
           <div style="font-size:10px; color:${currentLocIdx===i?'#f87171':'#334155'};">家賃 ${loc.rentBase}万円/月</div>
           <div style="font-size:10px; color:${currentLocIdx===i?'#fecdd3':'#2d3748'}; margin-top:3px; line-height:1.5;">${loc.note}</div>
@@ -268,6 +254,7 @@
 
     function selectStation(s) { currentStation = s; currentLocIdx = 0; renderStationPills(); renderLocationCards(); updateTargetPopulation(); updatePreviews(); }
     function selectLocation(i) { currentLocIdx = i; renderLocationCards(); updatePreviews(); }
+    
     function selectPreset(id) {
       currentPresetId = id;
       const p = SHOP_PRESETS.find(x => x.id === id);
@@ -275,7 +262,6 @@
       params.usageRate = p.usageRate; params.annualVisits = p.annualVisits; params.costRate = p.costRate;
       targetAges = [...p.targetAge]; targetGenders = [...p.targetGender];
       
-      // UIへの同期反映
       document.getElementById('slider-unitPrice').value = p.unitPrice;
       document.getElementById('input-eatIn').value = p.eatIn;
       document.getElementById('input-takeout').value = p.takeout;
@@ -287,8 +273,8 @@
       renderPresetButtons(); renderChips(); updateTargetPopulation(); updatePreviews();
     }
 
-    function toggleAge(a) { targetAges = targetAges.includes(a) ? targetAges.filter(x=>x!==a) : [...targetAges, a]; renderChips(); updateTargetPopulation(); }
-    function toggleGender(g) { targetGenders = targetGenders.includes(g) ? targetGenders.filter(x=>x!==g) : [...targetGenders, g]; renderChips(); updateTargetPopulation(); }
+    function toggleAge(a) { targetAges = targetAges.includes(a) ? targetAges.filter(x=>x!==a) : [...targetAges, a]; renderChips(); updateTargetPopulation(); updatePreviews(); }
+    function toggleGender(g) { targetGenders = targetGenders.includes(g) ? targetGenders.filter(x=>x!==g) : [...targetGenders, g]; renderChips(); updateTargetPopulation(); updatePreviews(); }
 
     function updateTargetPopulation() {
       let n = 0; const stData = POPULATION_DATA[currentStation];
@@ -320,7 +306,6 @@
       document.getElementById('mix-error').style.display = mixTotal === 100 ? 'none' : 'block';
     }
 
-    // シミュレーション計算コアエンジン
     function executeSimulation() {
       if((params.eatIn + params.takeout + params.retail) !== 100) return;
       
@@ -329,22 +314,21 @@
       const rb = 1 + (params.repeatRate / 100) * 0.15;
       const months = [];
       
-      // 4月〜9月を固定シミュレート
       for (let m = 4; m <= 9; m++) {
         const wt = MONTHLY_WEATHER[m];
-        const days = 30; // 固定計算用
+        const days = 30; 
         let totalRev = 0, totalCust = 0;
         const dailyLogs = [];
 
         for (let d = 1; d <= days; d++) {
           const roll = Math.random();
           let wMod, wKey;
-          if      (roll < wt.sunny) wKey="sunny", wMod=1.0;
-          else if (roll < wt.sunny+wt.cloudy) wKey="cloudy", wMod=0.88;
-          else if (roll < wt.sunny+wt.cloudy+wt.rain) wKey="rain", wMod=locData.rainResist;
-          else wKey="extreme", wMod=0.72;
+          if (roll < wt.sunny) { wKey="sunny"; wMod=1.0; }
+          else if (roll < wt.sunny+wt.cloudy) { wKey="cloudy"; wMod=0.88; }
+          else if (roll < wt.sunny+wt.cloudy+wt.rain) { wKey="rain"; wMod=locData.rainResist; }
+          else { wKey="extreme"; wMod=0.72; }
 
-          const noise = 0.85 + (Math.random() * 0.30); // 日々のバラつきノイズ
+          const noise = 0.85 + (Math.random() * 0.30); 
           const base = (params.unitPrice * (params.usageRate/100) * params.annualVisits * (params.shareRate/100)) / 365;
           
           const dailyRev = base * locData.footfall * wMod * wt.tempMod * (1+adBoostRate) * rb * noise;
@@ -375,7 +359,6 @@
       renderResults(newRun);
       switchTab('result');
       
-      // 履歴アラートの更新
       document.getElementById('history-alert').style.display = 'flex';
       document.getElementById('alert-count').innerText = history.length + "回";
       document.getElementById('history-count').innerText = `(${history.length})`;
@@ -396,7 +379,6 @@
       document.getElementById('card-avg-profit').style.borderTopColor = color;
       apEl.style.color = color;
 
-      // 検定用テーブルの構築
       let tableHtml = '';
       if (history.length >= 2) {
         const runA = history[history.length - 2];
@@ -440,9 +422,9 @@
               </tr>
             </tbody>
           </table>
-          <div style="margin-top:12px; padding:12px; background:#2d1224; border-radius:8px; border:1px solid #f43f5e; color:#fda4af; font-size:12px; lineHeight:1.5; text-align:left;">
+          <div style="margin-top:12px; padding:12px; background:#2d1224; border-radius:8px; border:1px solid #f43f5e; color:#fda4af; font-size:12px; line-height:1.5; text-align:left;">
             <strong>💡 検定ミステリー：</strong><br>
-            AとBの平均客数に差が出ました。しかし日々のバラつきを見ると、どちらもブレがあります。この差は<strong>「施策Bの効果（有意差あり）」</strong>でしょうか？それとも<strong>「たまたま天気が良かった等の偶然のブレ（有意差なし）」</strong>でしょうか？（t検定を行うと数学的に証明できます）
+            AとBの平均客数に差が出ました。しかし日々のバラつきを見ると、どちらもブレがあります。この差は「<strong>施策Bの効果</strong>」（**有意差あり**）でしょうか？それとも「**たまたま天気が良かった等の偶然のブレ**」（**有意差なし**）でしょうか？（t検定を行うと数学的に証明できます）
           </div>`;
       } else {
         let rows = '';
@@ -490,6 +472,14 @@
       document.getElementById('history-count').innerText = '';
       switchTab('setup');
     }
+
+    // 安全確実な即時実行イニシャライズ（タイミング依存のバグを完全排除）
+    renderStationPills();
+    renderLocationCards();
+    renderPresetButtons();
+    renderChips();
+    updateTargetPopulation();
+    updatePreviews();
   </script>
 </body>
 </html>
