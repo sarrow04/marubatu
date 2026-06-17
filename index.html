@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>中央線 出店シミュレーター Ver.3.1</title>
+  <title>中央線 出店シミュレーター Ver.4</title>
   <style>
     body { margin: 0; background: #070e1c; color: #dce8f5; font-family: sans-serif; padding-bottom: 50px; }
     .container { max-width: 600px; margin: 0 auto; padding: 15px; }
@@ -26,11 +26,16 @@
     .radio-label { display: block; padding: 10px; background: #070e1c; border: 1px solid #1a2b42; margin-bottom: 5px; border-radius: 5px; cursor: pointer; font-size: 13px; line-height: 1.4; }
     .radio-label.active { background: #fb923c22; border-color: #fb923c; color: #fb923c; font-weight: bold; }
     .note { font-size: 10px; color: #64748b; font-weight: normal; margin-top: 3px; }
+    
+    /* 統計エリア用スタイル */
+    .stats-box { background: #111e36; border-left: 4px solid #38bdf8; padding: 12px; border-radius: 4px; margin-top: 10px; font-size: 12px; line-height: 1.5; }
+    .alert-danger { border-left-color: #f43f5e; background: #2e111a; }
+    .alert-success { border-left-color: #34d399; background: #112e1a; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h2 class="title">中央線 出店シミュレーター <span style="font-size:14px; color:#fb923c;">Ver.3.1 (ガチ相場版)</span></h2>
+    <h2 class="title">中央線 出店シミュレーター <span style="font-size:14px; color:#fb923c;">Ver.4</span></h2>
     
     <div class="grid" style="margin-bottom: 20px;">
       <button id="btn-tab-setup" class="btn btn-primary" onclick="switchTab('setup')">⚙️ 設定</button>
@@ -88,15 +93,15 @@
       <div class="card">
         <div style="font-size:12px; color:#8ba3c7; margin-bottom:10px;">6. 詳細数値を調整</div>
         <div class="grid">
+          <div class="input-group" style="grid-column: span 2;"><label>月間想定客数 (ベース/広告前)</label><input type="number" id="v-cust" value="2000"></div>
           <div class="input-group"><label>客単価 (円)</label><input type="number" id="v-price" value="1100"></div>
           <div class="input-group"><label>原価率 (%)</label><input type="number" id="v-cr" value="45"></div>
           <div class="input-group"><label>月間営業日数 (日)</label><input type="number" id="v-opendays" value="25"></div>
-          <div class="input-group"><label>年間来店回数/人</label><input type="number" id="v-av" value="52"></div>
-          <div class="input-group"><label>利用率 (%)</label><input type="number" id="v-ur" value="40"></div>
           <div class="input-group"><label>スタッフ数/日</label><input type="number" id="v-staff" value="3"></div>
           <div class="input-group"><label>時給 (円)</label><input type="number" id="v-wage" value="1100"></div>
           <div class="input-group"><label>総労働時間/日 (h)</label><input type="number" id="v-hrs" value="8"></div>
-          <div class="input-group" style="grid-column: span 2;"><label>その他固定費・広告費/月 (円)</label><input type="number" id="v-fixed" value="60000"></div>
+          <div class="input-group"><label>その他固定費/月 (円)</label><input type="number" id="v-fixed" value="40000"></div>
+          <div class="input-group"><label>広告費/月 (円)</label><input type="number" id="v-ad" value="30000"></div>
         </div>
       </div>
 
@@ -114,45 +119,27 @@
   </div>
 
   <script>
-    // 🆕 家賃データを「リアルな1階路面店（12〜15坪サイズ）」のガチ相場に一括修正！
     const LOCS = {
-      "阿佐ヶ谷": [
-        {name:"パールセンター商店街", rent:50, ff:1.2, wk:1.12, rain:0.95, note:"一等地路面。アーケードで雨に強い"}, 
-        {name:"スターロード周辺", rent:32, ff:0.75, wk:1.05, rain:0.55, note:"夜型路地。バル・バー向きだが雨に大打撃"}, 
-        {name:"住宅街（駅から10分）", rent:18, ff:0.45, wk:0.95, rain:0.7, note:"固定客の生活圏。低家賃で勝負"}
-      ],
-      "高円寺": [
-        {name:"高円寺商店街コア", rent:45, ff:1.1, wk:1.25, rain:0.75, note:"サブカルの聖地。週末は広域から集客"}, 
-        {name:"住宅街（庚申通り）", rent:22, ff:0.55, wk:0.9, rain:0.65, note:"地元住民密着。常連率が高い"}
-      ],
-      "荻窪": [
-        {name:"駅前ロータリー商圏", rent:65, ff:1.3, wk:1.18, rain:0.8, note:"乗り換え客多数。抜群の集客力"}, 
-        {name:"住宅街（西荻側）", rent:24, ff:0.5, wk:0.92, rain:0.68, note:"落ち着いた住宅街。ランチ中心"}
-      ],
-      "中野": [
-        {name:"サンモール・BW周辺", rent:85, ff:1.5, wk:1.3, rain:0.85, note:"日本屈指の超高密度商圏。集客力最大級"}, 
-        {name:"住宅街（北口側）", rent:28, ff:0.6, wk:1.0, rain:0.7, note:"オフィスワーカーの昼需要もアリ"}
-      ],
-      "吉祥寺": [
-        {name:"サンロード商店街", rent:100, ff:1.35, wk:1.28, rain:0.88, note:"超一等地。全天候アーケードで圧倒的集客"}, 
-        {name:"井の頭公園エリア", rent:75, ff:1.4, wk:1.35, rain:0.65, note:"ブランド力抜群のお洒落激戦区。週末型"}, 
-        {name:"住宅街（東側五日市街道）", rent:35, ff:0.55, wk:0.88, rain:0.72, note:"高所得なファミリー層がターゲット"}
-      ]
+      "阿佐ヶ谷": [{name:"パールセンター商店街", rent:50, ff:1.2, wk:1.12, rain:0.95, note:"一等地路面。アーケードで雨に強い"}, {name:"スターロード周辺", rent:32, ff:0.75, wk:1.05, rain:0.55, note:"夜型路地。バル・バー向きだが雨に大打撃"}, {name:"住宅街（駅から10分）", rent:18, ff:0.45, wk:0.95, rain:0.7, note:"固定客の生活圏。低家賃で勝負"}],
+      "高円寺": [{name:"高円寺商店街コア", rent:45, ff:1.1, wk:1.25, rain:0.75, note:"サブカルの聖地。週末は広域から集客"}, {name:"住宅街（庚申通り）", rent:22, ff:0.55, wk:0.9, rain:0.65, note:"地元住民密着。常連率が高い"}],
+      "荻窪": [{name:"駅前ロータリー商圏", rent:65, ff:1.3, wk:1.18, rain:0.8, note:"乗り換え客多数。抜群の集客力"}, {name:"住宅街（西荻側）", rent:24, ff:0.5, wk:0.92, rain:0.68, note:"落ち着いた住宅街。ランチ中心"}],
+      "中野": [{name:"サンモール・BW周辺", rent:85, ff:1.5, wk:1.3, rain:0.85, note:"日本屈指の超高密度商圏。集客力最大級"}, {name:"住宅街（北口側）", rent:28, ff:0.6, wk:1.0, rain:0.7, note:"オフィスワーカーの昼需要もアリ"}],
+      "吉祥寺": [{name:"サンロード商店街", rent:100, ff:1.35, wk:1.28, rain:0.88, note:"超一等地。全天候アーケードで圧倒的集客"}, {name:"井の頭公園エリア", rent:75, ff:1.4, wk:1.35, rain:0.65, note:"ブランド力抜群のお洒落激戦区。週末型"}, {name:"住宅街（東側五日市街道）", rent:35, ff:0.55, wk:0.88, rain:0.72, note:"高所得なファミリー層がターゲット"}]
     };
 
     const PRESETS = [
-      {name:"☕ カフェ", p:1100, ur:40, av:52, cr:45, ei:70, to:30, re:0},
-      {name:"🍜 ラーメン", p:950, ur:50, av:36, cr:48, ei:95, to:5, re:0},
-      {name:"🍕 ピザ", p:3500, ur:80, av:24, cr:55, ei:60, to:40, re:0},
-      {name:"🍺 居酒屋", p:3200, ur:35, av:18, cr:52, ei:100, to:0, re:0},
-      {name:"✏️ その他", p:2000, ur:20, av:24, cr:50, ei:50, to:30, re:20} 
+      {name:"☕ カフェ", p:1100, cr:45, ei:70, to:30, re:0},
+      {name:"🍜 ラーメン", p:950, cr:48, ei:95, to:5, re:0},
+      {name:"🍕 ピザ", p:3500, cr:55, ei:60, to:40, re:0},
+      {name:"🍺 居酒屋", p:3200, cr:52, ei:100, to:0, re:0},
+      {name:"✏️ その他", p:2000, cr:50, ei:50, to:30, re:20} 
     ];
 
     const M_DATA = {
-      1: { tm: 0.82, rainP: 0.15, temp: "5℃ (寒冬)" },2: { tm: 0.85, rainP: 0.18, temp: "6℃ (寒冬)" },3: { tm: 0.95, rainP: 0.25, temp: "11℃ (春先)" },
-      4: { tm: 1.05, rainP: 0.24, temp: "16℃ (春爛漫)" },5: { tm: 1.08, rainP: 0.22, temp: "21℃ (初夏)" },6: { tm: 0.92, rainP: 0.45, temp: "23℃ (梅雨)" },
-      7: { tm: 0.88, rainP: 0.28, temp: "27℃ (猛暑)" },8: { tm: 0.85, rainP: 0.25, temp: "29℃ (台風)" },9: { tm: 0.90, rainP: 0.30, temp: "25℃ (残暑)" },
-      10:{ tm: 1.05, rainP: 0.18, temp: "19℃ (秋晴)" },11:{ tm: 1.00, rainP: 0.18, temp: "13℃ (晩秋)" },12:{ tm: 0.88, rainP: 0.17, temp: "8℃ (初冬)" }
+      1: { tm: 0.82, rainP: 0.15, temp: "5℃" }, 2: { tm: 0.85, rainP: 0.18, temp: "6℃" }, 3: { tm: 0.95, rainP: 0.25, temp: "11℃" },
+      4: { tm: 1.05, rainP: 0.24, temp: "16℃" }, 5: { tm: 1.08, rainP: 0.22, temp: "21℃" }, 6: { tm: 0.92, rainP: 0.45, temp: "23℃" },
+      7: { tm: 0.88, rainP: 0.28, temp: "27℃" }, 8: { tm: 0.85, rainP: 0.25, temp: "29℃" }, 9: { tm: 0.90, rainP: 0.30, temp: "25℃" },
+      10:{ tm: 1.05, rainP: 0.18, temp: "19℃" }, 11:{ tm: 1.00, rainP: 0.18, temp: "13℃" }, 12:{ tm: 0.88, rainP: 0.17, temp: "8℃" }
     };
 
     let selLocIdx = 0;
@@ -163,7 +150,6 @@
     window.onload = () => {
       const stSelect = el("station");
       for(let s in LOCS) stSelect.innerHTML += `<option value="${s}">${s}</option>`;
-      
       const preCont = el("preset-container");
       PRESETS.forEach((p, i) => {
         preCont.innerHTML += `<button class="btn btn-outline" style="margin-top:0; font-size:12px; padding:8px 4px;" onclick="applyPreset(${i})">${p.name}</button>`;
@@ -204,8 +190,7 @@
     }
 
     function applyPreset(idx) {
-      const p = PRESETS[idx];
-      el("v-price").value = p.p; el("v-cr").value = p.cr; el("v-ur").value = p.ur; el("v-av").value = p.av;
+      const p = PRESETS[idx]; el("v-price").value = p.p; el("v-cr").value = p.cr;
       el("v-ei").value = p.ei; el("v-to").value = p.to; el("v-re").value = p.re;
       checkTotal();
     }
@@ -221,51 +206,95 @@
       window.scrollTo(0, 0);
     }
 
+    // 統計用：平均と分散を計算する関数
+    function getStats(arr) {
+      const n = arr.length; if (n < 2) return { mean: 0, v: 0, n };
+      const mean = arr.reduce((a,b)=>a+b,0) / n;
+      const v = arr.reduce((a,b)=>a+Math.pow(b-mean,2),0) / (n - 1);
+      return { mean, v, n };
+    }
+
+    // ── メイン計算処理 ──
     function runSim() {
       const st = el("station").value; const loc = LOCS[st][selLocIdx];
-      const price = val("v-price"), cr = val("v-cr"), ur = val("v-ur"), av = val("v-av");
-      const staff = val("v-staff"), wage = val("v-wage"), hrs = val("v-hrs"), fixed = val("v-fixed");
-      const startM = val("v-start-m"), endM = val("v-end-m"), openDays = val("v-opendays");
+      const price = val("v-price"), cr = val("v-cr"), baseCust = val("v-cust");
+      const staff = val("v-staff"), wage = val("v-wage"), hrs = val("v-hrs");
+      const fixed = val("v-fixed"), ad = val("v-ad"), openDays = val("v-opendays");
+      const startM = val("v-start-m"), endM = val("v-end-m");
 
       let monthsToRun = []; let cur = startM;
       while(true) { monthsToRun.push(cur); if (cur === endM) break; cur = cur === 12 ? 1 : cur + 1; if (monthsToRun.length > 24) break; }
 
       const eiPct = val("v-ei"), toPct = val("v-to"), rePct = val("v-re");
+      
+      // 🆕 広告費による客数ブーストロジック (15万円で最大+40%アップ)
+      const adBoost = Math.min(0.40, ad / 150000);
+      const boostedCust = baseCust * (1 + adBoost);
+
       let totalRev = 0, totalProfit = 0, totalEI = 0, totalTO = 0, totalRE = 0;
       let tableHTML = "";
+
+      // 統計検定用に1日ごとの売上データを記録する配列
+      let weekdaySales = [], weekendSales = [];
+      let crossTable = { sunnyBlack:0, rainBlack:0, sunnyRed:0, rainRed:0 }; // カイ二乗用
 
       monthsToRun.forEach(m => {
         const days = new Date(2025, m, 0).getDate(); const mData = M_DATA[m];
         let mRevEI = 0, mRevTO = 0, mRevRE = 0, rainDays = 0;
         
+        // 日次の固定費計算用（家賃＋固定費＋広告費を営業日数ベースで日割）
+        const dayFixedCost = (loc.rent * 10000 + fixed + ad) / openDays;
+
         for(let d = 1; d <= days; d++) {
-          const isWk = new Date(2025, m-1, d).getDay() % 6 === 0;
+          const dateObj = new Date(2025, m-1, d);
+          const isWk = dateObj.getDay() % 6 === 0;
           const isRain = Math.random() < mData.rainP;
           if(isRain) rainDays++;
 
-          const base = (10000 * (ur/100) * av * price * 0.03) / 365;
-          const baseEI = base * (eiPct / 100), baseTO = base * (toPct / 100), baseRE = base * (rePct / 100);
+          // 1日あたりのベース客数（広告ブースト後）
+          const dayBaseCust = boostedCust / 30;
+          const dayBaseEI = dayBaseCust * (eiPct / 100);
+          const dayBaseTO = dayBaseCust * (toPct / 100);
+          const dayBaseRE = dayBaseCust * (rePct / 100);
           
-          const curRainEI = isRain ? loc.rain : 1.0; 
-          const curRainTO = isRain ? (loc.rain + 1) / 2 : 1.0; 
-          const curRainRE = 1.0; 
+          // 天候影響の個別計算
+          const curRainEI = isRain ? loc.rain : 1.0;
+          const curRainTO = isRain ? (loc.rain + 1) / 2 : 1.0;
+          const curRainRE = 1.0;
           
           const common = loc.ff * mData.tm * (isWk ? loc.wk : 1.0);
-          mRevEI += baseEI * common * curRainEI;
-          mRevTO += baseTO * common * curRainTO;
-          mRevRE += baseRE * common * curRainRE;
+          const dEI = dayBaseEI * common * curRainEI * price;
+          const dTO = dayBaseTO * common * curRainTO * price;
+          const dRE = dayBaseRE * common * curRainRE * price;
+          const dRev = dEI + dTO + dRE;
+
+          mRevEI += dEI; mRevTO += dTO; mRevRE += dRE;
+
+          // 🆕 統計検定用にデータを配列へ振り分け（営業日の割合に応じて擬似サンプリング）
+          if (d <= openDays) {
+            if (isWk) weekendSales.push(dRev); else weekdaySales.push(dRev);
+            
+            // カイ二乗用に「その日が黒字か赤字か」を判定
+            const dVariableCost = dRev * (cr / 100) + (staff * wage * hrs);
+            const dProfit = dRev - dVariableCost - dayFixedCost;
+            const isBlack = dProfit >= 0;
+
+            if (isRain) {
+              if (isBlack) crossTable.rainBlack++; else crossTable.rainRed++;
+            } else {
+              if (isBlack) crossTable.sunnyBlack++; else crossTable.sunnyRed++;
+            }
+          }
         }
         
         const openRatio = Math.min(1, openDays / days);
-        const finalEI = mRevEI * openRatio;
-        const finalTO = mRevTO * openRatio;
-        const finalRE = mRevRE * openRatio;
+        const finalEI = mRevEI * openRatio; const finalTO = mRevTO * openRatio; const finalRE = mRevRE * openRatio;
         const mRev = finalEI + finalTO + finalRE;
 
         const fRent = loc.rent * 10000;
-        const fLabor = staff * wage * hrs * openDays; 
+        const fLabor = staff * wage * hrs * openDays;
         const vCogs = mRev * (cr/100);
-        const mProfit = mRev - fRent - fLabor - fixed - vCogs;
+        const mProfit = mRev - fRent - fLabor - fixed - ad;
 
         totalRev += mRev; totalEI += finalEI; totalTO += finalTO; totalRE += finalRE; totalProfit += mProfit;
         const pColor = mProfit >= 0 ? "#34d399" : "#f43f5e";
@@ -281,12 +310,47 @@
           </tr>`;
       });
 
+      // ── 🆕 【統計検定セクション】 ──
+      // 1. 平日vs週末の t検定
+      const s1 = getStats(weekdaySales); const s2 = getStats(weekendSales);
+      let tValue = 0; let tResultHTML = "";
+      if (s1.n > 1 && s2.n > 1 && (s1.v / s1.n + s2.v / s2.n) > 0) {
+        tValue = (s1.mean - s2.mean) / Math.sqrt((s1.v / s1.n) + (s2.v / s2.n));
+        const isSignif = Math.abs(tValue) > 1.96; // 自由度大における5%有意水準のしきい値
+        if (isSignif) {
+          if (s1.mean < s2.mean) {
+            tResultHTML = `<div class="stats-box alert-danger"><strong>⚠️ t検定結果：平日の集客がボトルネックです</strong><br>統計的に平日の売上が週末より有意に低いです（t値: ${tValue.toFixed(2)}）。平日の集客ターゲット層開拓や、ランチ限定メニューの強化が必要です。</div>`;
+          } else {
+            tResultHTML = `<div class="stats-box alert-danger"><strong>⚠️ t検定結果：週末の集客がボトルネックです</strong><br>統計的に週末の売上が平日より有意に低いです（t値: ${tValue.toFixed(2)}）。立地がオフィス街に偏っているか、休日の集客施策が不足しています。</div>`;
+          }
+        } else {
+          tResultHTML = `<div class="stats-box alert-success"><strong>✅ t検定結果：平日・週末のバランス良好</strong><br>平日と週末の1日あたり売上に統計的な有意差はありません（t値: ${tValue.toFixed(2)}）。曜日によるボトルネックは未検出です。</div>`;
+        }
+      }
+
+      // 2. 天候と黒字化の カイ二乗検定
+      const A = crossTable.sunnyBlack, B = crossTable.rainBlack;
+      const C = crossTable.sunnyRed,   D = crossTable.rainRed;
+      const N = A + B + C + D;
+      let chiResultHTML = "";
+      if ((A+B)*(C+D)*(A+C)*(B+D) > 0) {
+        const chi2 = (N * Math.pow(A*D - B*C, 2)) / ((A+B)*(C+D)*(A+C)*(B+D));
+        const isSignif = chi2 > 3.84; // 自由度1、有意水準5%のしきい値
+        if (isSignif) {
+          const rainRedPct = (D / (B+D) * 100).toFixed(0);
+          chiResultHTML = `<div class="stats-box alert-danger"><strong>⚠️ カイ二乗検定：天候（雨）が致命的なボトルネックです</strong><br>雨の日と晴れの日での黒字・赤字比率に、統計的に極めて強い関連性が認められます（カイ二乗値: ${chi2.toFixed(2)} &gt; 3.84）。特に雨の日の赤字確率は ${rainRedPct}% です。テイクアウトや物販など、雨に影響されない売上比率を高める必要があります。</div>`;
+        } else {
+          chiResultHTML = `<div class="stats-box alert-success"><strong>✅ カイ二乗検定：天候リスクは許容範囲内</strong><br>天候による日次の赤字・黒字の偏りは統計的に有意ではありません（カイ二乗値: ${chi2.toFixed(2)} &lt; 3.84）。選んだ立地（アーケード等）または売上構成が、雨のリスクを上手く吸収しています。</div>`;
+        }
+      }
+
       const totalColor = totalProfit >= 0 ? "#34d399" : "#f43f5e";
+      const displayBoost = (adBoost * 100).toFixed(0);
 
       el("result-content").innerHTML = `
         <div class="grid" style="margin-bottom:15px;">
           <div class="card" style="margin:0; border-top:3px solid #fb923c;">
-            <div style="font-size:11px; color:#8ba3c7;">期間売上合計 (${monthsToRun.length}ヶ月 / 月${openDays}日営業)</div>
+            <div style="font-size:11px; color:#8ba3c7;">期間売上合計 (${monthsToRun.length}ヶ月 / 広告ブースト: +${displayBoost}%)</div>
             <div style="font-size:18px; font-weight:bold; color:#fb923c;">${yen(totalRev)}</div>
             <div style="font-size:10px; color:#8ba3c7; margin-top:8px; border-top:1px dashed #1a2b42; padding-top:6px; line-height:1.4;">
               🍽️イートイン: ${yen(totalEI)} (${eiPct}%)<br>
@@ -298,6 +362,12 @@
             <div style="font-size:11px; color:#8ba3c7;">期間利益合計</div>
             <div style="font-size:22px; font-weight:bold; color:${totalColor};">${yen(totalProfit)}</div>
           </div>
+        </div>
+
+        <div class="card">
+          <div style="font-size:12px; color:#8ba3c7; margin-bottom:5px;">📊 統計的ボトルネック検証（検定結果）</div>
+          ${tResultHTML}
+          ${chiResultHTML}
         </div>
         
         <div class="card" style="overflow-x:auto; padding:10px 5px;">
