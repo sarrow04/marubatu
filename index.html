@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>中央線 出店シミュレーター Ver.7.1</title>
+  <title>中央線 出店シミュレーター Ver.8</title>
   <style>
     body { margin: 0; background: #070e1c; color: #dce8f5; font-family: sans-serif; padding-bottom: 50px; }
     .container { max-width: 600px; margin: 0 auto; padding: 15px; }
@@ -42,7 +42,7 @@
 </head>
 <body>
   <div class="container">
-    <h2 class="title">中央線 出店シミュレーター <span style="font-size:14px; color:#fb923c;">Ver.7.1</span></h2>
+    <h2 class="title">中央線 出店シミュレーター <span style="font-size:14px; color:#fb923c;">Ver.8</span></h2>
     
     <div class="grid" style="margin-bottom: 20px;">
       <button id="btn-tab-setup" class="btn btn-primary" onclick="switchTab('setup')">⚙️ 設定</button>
@@ -85,14 +85,17 @@
       <div class="card">
         <div style="font-size:12px; color:#8ba3c7; margin-bottom:10px;">6. 詳細数値を調整</div>
         <div class="grid">
-          <div class="input-group" style="grid-column: span 2;"><label>月間想定客数 (ベース/広告前)</label><input type="number" id="v-cust" value="2000"></div>
+          <div class="input-group"><label>💰 周辺の市場規模 (年間/万円)</label><input type="number" id="v-market" value="8000"></div>
+          <div class="input-group"><label>⚔️ 周辺の競合店舗数 (店)</label><input type="number" id="v-rival" value="3"></div>
+          
           <div class="input-group"><label>客単価 (円)</label><input type="number" id="v-price" value="1100"></div>
           <div class="input-group"><label>原価率 (%)</label><input type="number" id="v-cr" value="45"></div>
           <div class="input-group"><label>月間営業日数 (日)</label><input type="number" id="v-opendays" value="25"></div>
-          
           <div class="input-group"><label>🏠 家賃/月 (円)</label><input type="number" id="v-rent" value="500000"></div>
           
-          <div class="input-group"><label>スタッフ数/日</label><input type="number" id="v-staff" value="3"></div>
+          <div class="input-group"><label>👨‍🍳 スタッフ数 (平日/日)</label><input type="number" id="v-staff-wd" value="2"></div>
+          <div class="input-group"><label>🏮 スタッフ数 (土日祝/日)</label><input type="number" id="v-staff-we" value="4"></div>
+          
           <div class="input-group"><label>時給 (円)</label><input type="number" id="v-wage" value="1100"></div>
           <div class="input-group"><label>総労働時間/日 (h)</label><input type="number" id="v-hrs" value="8"></div>
           <div class="input-group"><label>その他固定費/月 (円)</label><input type="number" id="v-fixed" value="40000"></div>
@@ -155,18 +158,12 @@
     function updateLocs() {
       const st = el("station").value; const cont = el("loc-container"); cont.innerHTML = ""; selLocIdx = 0;
       LOCS[st].forEach((l, i) => { cont.innerHTML += `<label class="radio-label ${i===0?'active':''}" id="lbl-loc-${i}" onclick="selectLoc(${i})"><div style="display:flex; align-items:center;"><input type="radio" name="loc" ${i===0?'checked':''} style="margin-right:10px;"><span>${l.name} (目安: ${l.rent}万円)</span></div><div class="note">${l.note}</div></label>`; });
-      
-      // 🆕 エリア切替時に、最初の立地のデフォルト家賃を数値入力欄に自動セット
       el("v-rent").value = LOCS[st][0].rent * 10000;
     }
 
     function selectLoc(idx) {
       selLocIdx = idx; const st = el("station").value;
-      LOCS[st].forEach((_, i) => {
-        el(`lbl-loc-${i}`).className = "radio-label" + (i === idx ? " active" : "");
-        el(`lbl-loc-${i}`).querySelector("input").checked = (i === idx);
-      });
-      // 🆕 立地を切り替えたら、その立地のデフォルト家賃を数値入力欄に上書き注入
+      LOCS[st].forEach((_, i) => { el(`lbl-loc-${i}`).className = "radio-label" + (i === idx ? " active" : ""); el(`lbl-loc-${i}`).querySelector("input").checked = (i === idx); });
       el("v-rent").value = LOCS[st][idx].rent * 10000;
     }
 
@@ -186,20 +183,34 @@
       setTimeout(() => { copyBtn.innerText = "📋 レポート文章をクリップボードにコピー"; copyBtn.style.background = ""; }, 2000);
     }
 
+    // ── メインシミュレーション計算処理 ──
     function runSim() {
       const st = el("station").value; const loc = LOCS[st][selLocIdx];
-      const price = val("v-price"), cr = val("v-cr"), baseCust = val("v-cust");
-      const staff = val("v-staff"), wage = val("v-wage"), hrs = val("v-hrs"), fixed = val("v-fixed"), ad = val("v-ad"), openDays = val("v-opendays");
-      
-      // 🆕 自由入力された家賃の数値を取得
-      const rent = val("v-rent");
+      const price = val("v-price"), cr = val("v-cr"), rent = val("v-rent");
+      const wage = val("v-wage"), hrs = val("v-hrs"), fixed = val("v-fixed"), ad = val("v-ad"), openDays = val("v-opendays");
       const startM = val("v-start-m"), endM = val("v-end-m");
+      
+      // 🆕 新規パラメータの取得
+      const marketSize = val("v-market") * 10000; // 万円から円に変換
+      const rivalCount = val("v-rival");
+      const staffWd = val("v-staff-wd");
+      const staffWe = val("v-staff-we");
 
       let monthsToRun = []; let cur = startM;
       while(true) { monthsToRun.push(cur); if (cur === endM) break; cur = cur === 12 ? 1 : cur + 1; if (monthsToRun.length > 24) break; }
 
       const eiPct = val("v-ei"), toPct = val("v-to"), rePct = val("v-re");
-      const adBoost = Math.min(0.40, ad / 150000); const boostedCust = baseCust * (1 + adBoost);
+      const adBoost = Math.min(0.40, ad / 150000);
+
+      // 🆕 【重要】市場金額と競合店舗数から「自店のベース月間客数」を自動逆算するロジック
+      // 月間市場総売上 ＝ 年間市場規模 / 12ヶ月
+      // 月間市場総客数 ＝ 月間市場総売上 / 客単価
+      // 自店の均等シェア分客数 ＝ 月間市場総客数 * (1 / (競合店舗数 + 自店1店舗))
+      const marketMonthlyRevenue = marketSize / 12;
+      const marketMonthlyCustomers = marketMonthlyRevenue / price;
+      const baseCust = marketMonthlyCustomers * (1 / (rivalCount + 1));
+      
+      const boostedCust = baseCust * (1 + adBoost);
 
       let totalRev = 0, totalProfit = 0, totalEI = 0, totalTO = 0, totalRE = 0;
       let totalCogs = 0, totalLabor = 0;
@@ -209,9 +220,8 @@
 
       monthsToRun.forEach(m => {
         const days = new Date(2025, m, 0).getDate(); const mData = M_DATA[m];
-        let mRevEI = 0, mRevTO = 0, mRevRE = 0, rainDays = 0;
+        let mRevEI = 0, mRevTO = 0, mRevRE = 0, rainDays = 0, mLaborCost = 0;
         
-        // 🆕 日次固定費の家賃計算に、自由入力された「rent」を使用
         const dayFixedCost = (rent + fixed + ad) / openDays;
 
         for(let d = 1; d <= days; d++) {
@@ -230,7 +240,13 @@
 
           if (d <= openDays) {
             if (isWk) weekendSales.push(dRev); else weekdaySales.push(dRev);
-            const dProfit = dRev - (dRev * (cr / 100) + (staff * wage * hrs)) - dayFixedCost;
+            
+            // 🆕 平日と土日祝でその日のスタッフ数を切り替えて人件費を計算
+            const dayStaff = isWk ? staffWe : staffWd;
+            const dayLaborCost = dayStaff * wage * hrs;
+            mLaborCost += dayLaborCost;
+
+            const dProfit = dRev - (dRev * (cr / 100) + dayLaborCost) - dayFixedCost;
             if (isRain) { if (dProfit >= 0) crossTable.rainBlack++; else crossTable.rainRed++; } 
             else { if (dProfit >= 0) crossTable.sunnyBlack++; else crossTable.sunnyRed++; }
           }
@@ -240,20 +256,18 @@
         const finalEI = mRevEI * openRatio; const finalTO = mRevTO * openRatio; const finalRE = mRevRE * openRatio;
         const mRev = finalEI + finalTO + finalRE;
         
-        const fLabor = staff * wage * hrs * openDays; const vCogs = mRev * (cr/100);
-        
-        // 🆕 月次利益の計算に、自由入力された「rent」を使用
-        const mProfit = mRev - rent - fLabor - fixed - ad - vCogs;
+        const vCogs = mRev * (cr/100);
+        const mProfit = mRev - rent - mLaborCost - fixed - ad - vCogs;
 
         totalRev += mRev; totalEI += finalEI; totalTO += finalTO; totalRE += finalRE; totalProfit += mProfit;
-        totalCogs += vCogs; totalLabor += fLabor;
+        totalCogs += vCogs; totalLabor += mLaborCost;
 
-        tableHTML += `<tr style="border-bottom: 1px solid #152040;"><td style="text-align:center; color:#fff;"><strong>${m}月</strong><br><span style="font-size:9px;color:#8ba3c7">${mData.temp}</span></td><td style="text-align:center; font-size:10px;">☀️${days - rainDays}日<br>☔️${rainDays}日</td><td style="color:#fb923c; font-weight:bold;">${yen(mRev)}</td><td>${yen(vCogs)}</td><td>${yen(fLabor)}</td><td style="font-weight:bold; color:${mProfit >= 0 ? "#34d399" : "#f43f5e"};">${yen(mProfit)}</td></tr>`;
+        tableHTML += `<tr style="border-bottom: 1px solid #152040;"><td style="text-align:center; color:#fff;"><strong>${m}月</strong><br><span style="font-size:9px;color:#8ba3c7">${mData.temp}</span></td><td style="text-align:center; font-size:10px;">☀️${days - rainDays}日<br>☔️${rainDays}日</td><td style="color:#fb923c; font-weight:bold;">${yen(mRev)}</td><td>${yen(vCogs)}</td><td>${yen(mLaborCost)}</td><td style="font-weight:bold; color:${mProfit >= 0 ? "#34d399" : "#f43f5e"};">${yen(mProfit)}</td></tr>`;
       });
 
       const mCount = monthsToRun.length;
       
-      // 🆕 損益分岐点計算の固定費に「rent」を使用
+      // 損益分岐点（BEP）計算
       const totalFixedCostNoLabor = (rent + fixed + ad) * mCount;
       const grandTotalFixedCost = totalFixedCostNoLabor + totalLabor; 
       const bepRevenue = grandTotalFixedCost / (1 - (cr / 100));
@@ -261,20 +275,25 @@
       const bepMonthlyCustomers = bepTotalCustomers / mCount;
       const bepDailyCustomers = bepMonthlyCustomers / openDays;
 
-      // 🆕 感度分析の家賃コストに「rent」を使用
+      // 感度分析
       const totalRentCost = rent * mCount;
       const totalOtherFixed = fixed * mCount;
-      const totalAdCost = ad * mCount;
 
-      const impPrice = totalRev * 0.1; const impCust = (totalRev - totalCogs) * 0.1; const impCr = totalCogs * 0.1; const impWage = totalLabor * 0.1; const impRent = totalRentCost * 0.1; const impFixed = totalOtherFixed * 0.1;
+      const impPrice = totalRev * 0.1; 
+      const impCust  = (totalRev - totalCogs) * 0.1; 
+      const impCr    = totalCogs * 0.1; 
+      const impWage  = totalLabor * 0.1; 
+      const impRent  = totalRentCost * 0.1; 
+      const impFixed = totalOtherFixed * 0.1;
       const maxImpact = Math.max(impPrice, impCust, impCr, impWage, impRent, impFixed, 1);
 
+      // 統計検定
       const s1 = getStats(weekdaySales); const s2 = getStats(weekendSales);
       let tValue = 0; let tText = "データ不足"; let tVerdict = "曜日ボトルネック未検出";
       if (s1.n > 1 && s2.n > 1) {
         tValue = (s1.mean - s2.mean) / Math.sqrt((s1.v / s1.n) + (s2.v / s2.n));
         const isSignif = Math.abs(tValue) > 1.96;
-        tText = `平日日平均 ${yen(s1.mean)} / 週末日平均 ${yen(s2.mean)} (t値: ${tValue.toFixed(2)})`;
+        tText = `平日平均 ${yen(s1.mean)} / 週末平均 ${yen(s2.mean)} (t値: ${tValue.toFixed(2)})`;
         tVerdict = isSignif ? (s1.mean < s2.mean ? "⚠️平日の集客がボトルネック" : "⚠️週末の集客がボトルネック") : "✅平日・週末の集客バランス良好";
       }
 
@@ -283,7 +302,7 @@
       if ((A+B)*(C+D)*(A+C)*(B+D) > 0) {
         chi2 = (N * Math.pow(A*D - B*C, 2)) / ((A+B)*(C+D)*(A+C)*(B+D));
         const isSignif = chi2 > 3.84;
-        chiText = `晴天時黒字率 ${((A)/(A+C)*100).toFixed(0)}% / 雨天時黒字率 ${((B)/(B+D)*100).toFixed(0)}% (χ²値: ${chi2.toFixed(2)})`;
+        chiText = `晴天黒字率 ${((A)/(A+C)*100).toFixed(0)}% / 雨天黒字率 ${((B)/(B+D)*100).toFixed(0)}% (χ²値: ${chi2.toFixed(2)})`;
         chiVerdict = isSignif ? "⚠️悪天候（雨）が経営の致命的ボトルネック" : "✅天候リスク回避済み";
       }
 
@@ -292,17 +311,22 @@
         { name: "人件費の10%削減", val: impWage }, { name: "家賃の10%削減", val: impRent }, { name: "その他固定費の10%削減", val: impFixed }
       ].sort((a, b) => b.val - a.val);
 
-      // 🆕 レポート出力のテキストに、自由入力された家賃を反映
-      const reportStr = `■ 中央線 出店シミュレーション レポート
-【基本出店条件】
+      // 🆕 レポートに新パラメータのデータを追記
+      const reportStr = `■ 中央線 出店シミュレーション レポート (Ver.8)
+【基本出店・マーケティング条件】
 ・商圏エリア : ${st}
 ・選択立地   : ${loc.name}
-・設定家賃   : ${yen(rent)} / 月 (手動設定)
-・営業期間   : ${startM}月 〜 ${endM}月 (${mCount}ヶ月間)
-・月間営業日 : ${openDays}日営業
+・設定家賃   : ${yen(rent)} / 月
+・周辺市場規模 : ${val("v-market")}万円 / 年
+・競合店舗数 : ${rivalCount}店 (自店シェア: ${(1 / (rivalCount + 1) * 100).toFixed(1)}%)
+・営業期間   : ${startM}月 〜 ${endM}月 (${mCount}ヶ月間 / 月${openDays}日営業)
+
+【人員配置計画】
+・平日シフト   : ${staffWd}人 / 日
+・土日祝シフト : ${staffWe}人 / 日
 
 【経営パフォーマンス（全体）】
-・期間総売上 : ${yen(totalRev)}
+・期間総売上 : ${yen(totalRev)} (月平均客数: ${Math.round(boostedCust).toLocaleString()}人)
 ・売上内訳   : イートイン ${eiPct}% / テイクアウト ${toPct}% / 物販 ${rePct}%
 ・期間総利益 : ${yen(totalProfit)} (月平均: ${yen(totalProfit / mCount)})
 
@@ -317,33 +341,10 @@
 
 【感度分析（最優先ボトルネック改善項目）】
 ・第1位 : ${sensitivityItems[0].name} (利益インパクト: +${yen(sensitivityItems[0].val)})
-・第2位 : ${sensitivityItems[1].name} (利益インパクト: +${yen(sensitivityItems[1].val)})
-・第3位 : ${sensitivityItems[2].name} (利益インパクト: +${yen(sensitivityItems[2].val)})`;
+・第2位 : ${sensitivityItems[1].name} (利益インパクト: +${yen(sensitivityItems[1].val)})`;
 
-      const tResultHTML = `
-        <div class="stats-box ${Math.abs(tValue) > 1.96 ? 'alert-danger' : 'alert-success'}">
-          <strong>【1】平日 vs 週末の集客t検定</strong><br>
-          <table class="inner-table">
-            <tr><th>グループ</th><th>サンプル数</th><th>日平均売上</th><th>標準偏差 (SD)</th></tr>
-            <tr><td>平日 (月〜金)</td><td>${s1.n}日</td><td>${yen(s1.mean)}</td><td>${yen(Math.sqrt(s1.v))}</td></tr>
-            <tr><td>週末 (土・日)</td><td>${s2.n}日</td><td>${yen(s2.mean)}</td><td>${yen(Math.sqrt(s2.v))}</td></tr>
-          </table>
-          計算結果: <strong>t値 = ${tValue.toFixed(3)}</strong> (しきい値: ±1.96)<br>
-          判定: ${tVerdict}
-        </div>`;
-
-      const chiResultHTML = `
-        <div class="stats-box ${chi2 > 3.84 ? 'alert-danger' : 'alert-success'}">
-          <strong>【2】天候 vs 日次損益のカイ二乗独立性検定</strong><br>
-          <table class="inner-table">
-            <tr><th>天候＼損益</th><th>黒字(日)</th><th>赤字(日)</th><th>合計</th></tr>
-            <tr><td>晴れ・曇り</td><td>${A}日</td><td>${C}日</td><td><strong>${A+C}日</strong></td></tr>
-            <tr><td>雨・悪天候</td><td>${B}日</td><td>${D}日</td><td><strong>${B+D}日</strong></td></tr>
-            <tr><td><strong>合計</strong></td><td><strong>${A+B}日</strong></td><td><strong>${C+D}日</strong></td><td><strong>${N}日</strong></td></tr>
-          </table>
-          計算結果: <strong>χ²値 = ${chi2.toFixed(3)}</strong> (しきい値: 3.841)<br>
-          判定: ${chiVerdict}
-        </div>`;
+      const tResultHTML = `<div class="stats-box ${Math.abs(tValue) > 1.96 ? 'alert-danger' : 'alert-success'}"><strong>【1】平日 vs 週末の集客t検定</strong><br><table class="inner-table"><tr><th>グループ</th><th>サンプル数</th><th>日平均売上</th><th>標準偏差 (SD)</th></tr><tr><td>平日 (月〜金)</td><td>${s1.n}日</td><td>${yen(s1.mean)}</td><td>${yen(Math.sqrt(s1.v))}</td></tr><tr><td>週末 (土・日)</td><td>${s2.n}日</td><td>${yen(s2.mean)}</td><td>${yen(Math.sqrt(s2.v))}</td></tr></table>計算結果: <strong>t値 = ${tValue.toFixed(3)}</strong><br>判定: ${tVerdict}</div>`;
+      const chiResultHTML = `<div class="stats-box ${chi2 > 3.84 ? 'alert-danger' : 'alert-success'}"><strong>【2】天候 vs 日次損益のカイ二乗独立性検定</strong><br><table class="inner-table"><tr><th>天候＼損益</th><th>黒字(日)</th><th>赤字(日)</th><th>合計</th></tr><tr><td>晴れ・曇り</td><td>${A}日</td><td>${C}日</td><td><strong>${A+C}日</strong></td></tr><tr><td>雨・悪天候</td><td>${B}日</td><td>${D}日</td><td><strong>${B+D}日</strong></td></tr><tr><td><strong>合計</strong></td><td><strong>${A+B}日</strong></td><td><strong>${C+D}日</strong></td><td><strong>${N}日</strong></td></tr></table>計算結果: <strong>χ²値 = ${chi2.toFixed(3)}</strong><br>判定: ${chiVerdict}</div>`;
 
       const totalColor = totalProfit >= 0 ? "#34d399" : "#f43f5e";
       const custDiff = boostedCust - bepMonthlyCustomers;
@@ -357,7 +358,7 @@
 
         <div class="grid" style="margin-bottom:15px;">
           <div class="card" style="margin:0; border-top:3px solid #fb923c;">
-            <div style="font-size:11px; color:#8ba3c7;">期間売上合計 (${mCount}ヶ月 / 広告補正込客数: ${Math.round(boostedCust)}人)</div>
+            <div style="font-size:11px; color:#8ba3c7;">期間売上合計 (${mCount}ヶ月 / 予測月間客数: ${Math.round(boostedCust)}人)</div>
             <div style="font-size:18px; font-weight:bold; color:#fb923c;">${yen(totalRev)}</div>
             <div style="font-size:10px; color:#8ba3c7; margin-top:8px; border-top:1px dashed #1a2b42; padding-top:6px; line-height:1.4;">
               🍽️イートイン: ${yen(totalEI)} (${eiPct}%)<br>🥡テイクアウト: ${yen(totalTO)} (${toPct}%)<br>🛍️物販売上: ${yen(totalRE)} (${rePct}%)
