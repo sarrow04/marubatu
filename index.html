@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>中央線 出店シミュレーター Ver.9.1</title>
+  <title>中央線 出店シミュレーター Ver.10</title>
   <style>
     body { margin: 0; background: #070e1c; color: #dce8f5; font-family: sans-serif; padding-bottom: 50px; }
     .container { max-width: 600px; margin: 0 auto; padding: 15px; }
@@ -42,7 +42,7 @@
 </head>
 <body>
   <div class="container">
-    <h2 class="title">中央線 出店シミュレーター <span style="font-size:14px; color:#fb923c;">Ver.9.1</span></h2>
+    <h2 class="title">中央線 出店シミュレーター <span style="font-size:14px; color:#fb923c;">Ver.10</span></h2>
     
     <div class="grid" style="margin-bottom: 20px;">
       <button id="btn-tab-setup" class="btn btn-primary" onclick="switchTab('setup')">⚙️ 設定</button>
@@ -53,6 +53,8 @@
       <div class="card">
         <div style="font-size:12px; color:#8ba3c7; margin-bottom:10px;">1. エリアを選択</div>
         <select id="station" onchange="updateLocs()"></select>
+        <div id="station-info" style="font-size:11px; color:#38bdf8; margin-top:5px; margin-bottom:10px;"></div>
+        
         <div style="font-size:12px; color:#8ba3c7; margin-bottom:10px; margin-top:15px;">2. 立地を選択</div>
         <div id="loc-container"></div>
       </div>
@@ -83,10 +85,16 @@
       </div>
 
       <div class="card">
-        <div style="font-size:12px; color:#8ba3c7; margin-bottom:10px;">6. 詳細数値を調整</div>
+        <div style="font-size:12px; color:#8ba3c7; margin-bottom:10px;">6. マーケティング＆詳細数値を調整</div>
         <div class="grid">
           <div class="input-group"><label>💰 周辺の市場規模 (万円/年)</label><input type="number" id="v-market" value="8000"></div>
           <div class="input-group"><label>⚔️ 周辺の競合店舗数 (店)</label><input type="number" id="v-rival" value="3"></div>
+          
+          <div class="input-group" style="grid-column: span 2; border: 1px dashed #38bdf8; padding: 5px; border-radius: 5px; background: #111e36;">
+            <label>🚶‍♂️ 乗降客の自店への流入率 (%)</label>
+            <input type="number" id="v-pass-rate" value="0.05" step="0.01" style="background:#1a2b42; color:#38bdf8;">
+            <div style="font-size:9px; color:#8ba3c7; margin-top:3px;">駅を通る人のうち、何%がふらっと入店するか（0.01%〜0.1%が現実的です）</div>
+          </div>
           
           <div class="input-group"><label>客単価 (円)</label><input type="number" id="v-price" value="1100"></div>
           <div class="input-group"><label>原価率 (%)</label><input type="number" id="v-cr" value="45"></div>
@@ -124,12 +132,40 @@
   </div>
 
   <script>
+    // 🆕 ST_DATA: 各駅の1日あたりの推定乗降客数 (JR・私鉄合算のざっくり目安)
+    const ST_DATA = {
+      "阿佐ヶ谷": { pass: 90000 },
+      "高円寺": { pass: 100000 },
+      "荻窪": { pass: 170000 },
+      "中野": { pass: 300000 },
+      "吉祥寺": { pass: 280000 }
+    };
+
+    // 🆕 locに `pf` (Passenger Factor = 乗降客流入恩恵係数) を追加
+    // 駅前やアーケードは1.0、住宅街は0.05など、立地による動線の強さを表現
     const LOCS = {
-      "阿佐ヶ谷": [{name:"パールセンター商店街", rent:50, ff:1.2, wk:1.12, rain:0.95, note:"一等地路面。アーケードで雨に強い"}, {name:"スターロード周辺", rent:32, ff:0.75, wk:1.05, rain:0.55, note:"夜型路地。雨天激減"}, {name:"住宅街（駅から10分）", rent:18, ff:0.45, wk:0.95, rain:0.7, note:"固定客の生活圏。"}],
-      "高円寺": [{name:"高円寺商店街コア", rent:45, ff:1.1, wk:1.25, rain:0.75, note:"サブカルの聖地。"}, {name:"住宅街（庚申通り）", rent:22, ff:0.55, wk:0.9, rain:0.65, note:"常連率が高い"}],
-      "荻窪": [{name:"駅前ロータリー商圏", rent:65, ff:1.3, wk:1.18, rain:0.8, note:"乗り換え客多数。"}, {name:"住宅街（西荻側）", rent:24, ff:0.5, wk:0.92, rain:0.68, note:"落ち着いた住宅街。"}],
-      "中野": [{name:"サンモール・BW周辺", rent:85, ff:1.5, wk:1.3, rain:0.85, note:"集客力最大級。"}, {name:"住宅街（北口側）", rent:28, ff:0.6, wk:1.0, rain:0.7, note:"オフィスワーカーの昼需要"}],
-      "吉祥寺": [{name:"サンロード商店街", rent:100, ff:1.35, wk:1.28, rain:0.88, note:"全天候アーケード"}, {name:"井の頭公園エリア", rent:75, ff:1.4, wk:1.35, rain:0.65, note:"お洒落激戦区。週末型"}, {name:"住宅街（東側）", rent:35, ff:0.55, wk:0.88, rain:0.72, note:"高所得なファミリー層"}]
+      "阿佐ヶ谷": [
+        {name:"パールセンター商店街", rent:50, ff:1.2, wk:1.12, rain:0.95, pf:0.6, note:"アーケードで雨に強い。乗降客も流れやすい"}, 
+        {name:"スターロード周辺", rent:32, ff:0.75, wk:1.05, rain:0.55, pf:0.4, note:"夜型路地。雨天激減だが駅チカ恩恵あり"}, 
+        {name:"住宅街（駅から10分）", rent:18, ff:0.45, wk:0.95, rain:0.7, pf:0.05, note:"完全な地元密着。駅からの流入はほぼゼロ"}
+      ],
+      "高円寺": [
+        {name:"高円寺商店街コア", rent:45, ff:1.1, wk:1.25, rain:0.75, pf:0.7, note:"サブカルの聖地。駅利用客が歩く動線"}, 
+        {name:"住宅街（庚申通り）", rent:22, ff:0.55, wk:0.9, rain:0.65, pf:0.1, note:"常連率が高い。わざわざ足を運ぶ場所"}
+      ],
+      "荻窪": [
+        {name:"駅前ロータリー商圏", rent:65, ff:1.3, wk:1.18, rain:0.8, pf:1.0, note:"乗り換え客多数。乗降客の恩恵MAX"}, 
+        {name:"住宅街（西荻側）", rent:24, ff:0.5, wk:0.92, rain:0.68, pf:0.1, note:"落ち着いた住宅街。地元客中心"}
+      ],
+      "中野": [
+        {name:"サンモール・BW周辺", rent:85, ff:1.5, wk:1.3, rain:0.85, pf:0.9, note:"集客力最大級。サンモールは最強の動線"}, 
+        {name:"住宅街（北口側）", rent:28, ff:0.6, wk:1.0, rain:0.7, pf:0.15, note:"オフィスワーカーの昼需要＋地元住民"}
+      ],
+      "吉祥寺": [
+        {name:"サンロード商店街", rent:100, ff:1.35, wk:1.28, rain:0.88, pf:1.0, note:"全天候アーケード。乗降客が雪崩れ込む超一等地"}, 
+        {name:"井の頭公園エリア", rent:75, ff:1.4, wk:1.35, rain:0.65, pf:0.6, note:"お洒落激戦区。公園に向かう人の恩恵アリ"}, 
+        {name:"住宅街（東側五日市街道）", rent:35, ff:0.55, wk:0.88, rain:0.72, pf:0.05, note:"高所得なファミリー層中心。駅恩恵は薄い"}
+      ]
     };
 
     const PRESETS = [
@@ -152,7 +188,6 @@
     const el = (id) => document.getElementById(id);
     const val = (id) => Number(el(id).value);
 
-    // ── 🚨強制初期化処理（window.onload依存を廃止）──
     function initApp() {
       const stSelect = el("station"); 
       stSelect.innerHTML = "";
@@ -176,7 +211,20 @@
 
     function updateLocs() {
       const st = el("station").value; const cont = el("loc-container"); cont.innerHTML = ""; selLocIdx = 0;
-      LOCS[st].forEach((l, i) => { cont.innerHTML += `<label class="radio-label ${i===0?'active':''}" id="lbl-loc-${i}" onclick="selectLoc(${i})"><div style="display:flex; align-items:center;"><input type="radio" name="loc" ${i===0?'checked':''} style="margin-right:10px;"><span>${l.name} (目安: ${l.rent}万円)</span></div><div class="note">${l.note}</div></label>`; });
+      
+      // 駅情報を更新
+      el("station-info").innerText = `🚆 推定乗降客数: 約${ST_DATA[st].pass.toLocaleString()}人 / 日`;
+
+      LOCS[st].forEach((l, i) => { 
+        cont.innerHTML += `
+          <label class="radio-label ${i===0?'active':''}" id="lbl-loc-${i}" onclick="selectLoc(${i})">
+            <div style="display:flex; align-items:center; justify-content:space-between;">
+              <div><input type="radio" name="loc" ${i===0?'checked':''} style="margin-right:10px;"><span>${l.name}</span></div>
+              <span style="font-size:11px; color:#fb923c;">${l.rent}万</span>
+            </div>
+            <div class="note">${l.note} (乗降客恩恵: ${Math.round(l.pf * 100)}%)</div>
+          </label>`; 
+      });
       el("v-rent").value = LOCS[st][0].rent * 10000;
     }
 
@@ -222,9 +270,8 @@
       const marketSize = val("v-market") * 10000; 
       const rivalCount = val("v-rival");
       const staffWd = val("v-staff-wd"); const staffWe = val("v-staff-we");
-      
-      const seats = val("v-seats");
-      const turnover = val("v-turnover");
+      const seats = val("v-seats"); const turnover = val("v-turnover");
+      const passRate = val("v-pass-rate") / 100; // 🆕 流入率
       const dailyCapacityEI = seats * turnover; 
 
       let monthsToRun = []; let cur = startM;
@@ -233,14 +280,17 @@
       const eiPct = val("v-ei"), toPct = val("v-to"), rePct = val("v-re");
       const adBoost = Math.min(0.40, ad / 150000);
 
+      // ① 地元市場からの客数ベース
       const marketMonthlyRevenue = marketSize / 12;
       const marketMonthlyCustomers = marketMonthlyRevenue / price;
-      const baseCust = marketMonthlyCustomers * (1 / (rivalCount + 1));
-      const boostedCust = baseCust * (1 + adBoost);
+      const baseMarketCust = marketMonthlyCustomers * (1 / (rivalCount + 1));
+      
+      // ② 駅の乗降客からの流入ベース（1日あたり）
+      const passDaily = ST_DATA[st].pass;
+      const passDailyCust = passDaily * passRate * loc.pf;
 
       let totalRev = 0, totalProfit = 0, totalEI = 0, totalTO = 0, totalRE = 0;
-      let totalCogs = 0, totalLabor = 0;
-      let totalLostCust = 0; 
+      let totalCogs = 0, totalLabor = 0, totalLostCust = 0, totalDailyCustSum = 0; 
       let tableHTML = "";
       let weekdaySales = [], weekendSales = [];
       let crossTable = { sunnyBlack:0, rainBlack:0, sunnyRed:0, rainRed:0 };
@@ -255,7 +305,11 @@
           const isWk = new Date(2025, m-1, d).getDay() % 6 === 0;
           const isRain = Math.random() < mData.rainP; if(isRain) rainDays++;
 
-          const dayBaseCust = boostedCust / 30;
+          // 🆕 1日の基本客数 = (地元月間客数/30) + (乗降客の流入数)
+          let dayBaseCust = (baseMarketCust / 30) + passDailyCust;
+          dayBaseCust = dayBaseCust * (1 + adBoost); // 広告効果
+          totalDailyCustSum += dayBaseCust;
+
           const common = loc.ff * mData.tm * (isWk ? loc.wk : 1.0);
           
           const potentialCustEI = dayBaseCust * (eiPct / 100) * common * (isRain ? loc.rain : 1.0);
@@ -331,7 +385,7 @@
           <div class="stats-box alert-danger">
             <strong>【3】キャパシティ(席数) ボトルネック検定</strong><br>
             集客力に対して席数・回転率が不足しており、期間中に <strong>約${Math.round(totalLostCust).toLocaleString()}人</strong> のお客様が「満席で入れない（機会損失）」状態になっています。<br>
-            失われた潜在売上は <strong>${yen(lostRev)}</strong> に上ります。広告費を削るか、テイクアウト比率を高めるか、席数の多い物件への変更を推奨します。
+            失われた潜在売上は <strong>${yen(lostRev)}</strong> に上ります。
           </div>`;
       } else {
         capacityResultHTML = `
@@ -364,7 +418,9 @@
         { name: "人件費の10%削減", val: impWage }, { name: "家賃の10%削減", val: impRent }, { name: "その他固定費の10%削減", val: impFixed }
       ].sort((a, b) => b.val - a.val);
 
-      const reportStr = `■ 中央線 出店シミュレーション レポート (Ver.9.1)
+      const estimatedAvgDailyCust = totalDailyCustSum / (mCount * 30);
+
+      const reportStr = `■ 中央線 出店シミュレーション レポート (Ver.10)
 【基本出店・マーケティング条件】
 ・商圏エリア : ${st}
 ・選択立地   : ${loc.name}
@@ -372,6 +428,7 @@
 ・店舗キャパ : ${seats}席 (想定回転率: ${turnover}回転/日)
 ・周辺市場規模 : ${val("v-market")}万円 / 年
 ・競合店舗数 : ${rivalCount}店 (自店シェア: ${(1 / (rivalCount + 1) * 100).toFixed(1)}%)
+・駅乗降客数 : ${ST_DATA[st].pass.toLocaleString()}人/日 (立地流入恩恵: ${Math.round(loc.pf * 100)}%)
 ・営業期間   : ${startM}月 〜 ${endM}月 (${mCount}ヶ月間 / 月${openDays}日営業)
 
 【人員配置計画】
@@ -379,13 +436,12 @@
 ・土日祝シフト : ${staffWe}人 / 日
 
 【経営パフォーマンス（全体）】
-・期間総売上 : ${yen(totalRev)}
+・期間総売上 : ${yen(totalRev)} (想定客数: 約${Math.round(estimatedAvgDailyCust * openDays).toLocaleString()}人/月)
 ・売上内訳   : イートイン ${eiPct}% / テイクアウト ${toPct}% / 物販 ${rePct}%
 ・期間総利益 : ${yen(totalProfit)} (月平均: ${yen(totalProfit / mCount)})
 
 【損益分岐点（BEP）逆算】
 ・黒字化に必要な客数 : ${Math.round(bepMonthlyCustomers).toLocaleString()}人 / 月 (${bepDailyCustomers.toFixed(1)}人 / 日)
-・現状の判定 : ${boostedCust >= bepMonthlyCustomers ? "黒字圏内" : "赤字圏内"}
 
 【データサイエンス統計検定結果】
 ・平日vs週末t検定  : ${tVerdict} (${tText})
@@ -400,7 +456,7 @@
       const chiResultHTML = `<div class="stats-box ${chi2 > 3.84 ? 'alert-danger' : 'alert-success'}"><strong>【2】天候 vs 日次損益のカイ二乗独立性検定</strong><br><table class="inner-table"><tr><th>天候＼損益</th><th>黒字(日)</th><th>赤字(日)</th><th>合計</th></tr><tr><td>晴れ・曇り</td><td>${A}日</td><td>${C}日</td><td><strong>${A+C}日</strong></td></tr><tr><td>雨・悪天候</td><td>${B}日</td><td>${D}日</td><td><strong>${B+D}日</strong></td></tr><tr><td><strong>合計</strong></td><td><strong>${A+B}日</strong></td><td><strong>${C+D}日</strong></td><td><strong>${N}日</strong></td></tr></table>計算結果: <strong>χ²値 = ${chi2.toFixed(3)}</strong><br>判定: ${chiVerdict}</div>`;
 
       const totalColor = totalProfit >= 0 ? "#34d399" : "#f43f5e";
-      const custDiff = boostedCust - bepMonthlyCustomers;
+      const custDiff = (estimatedAvgDailyCust * openDays) - bepMonthlyCustomers;
 
       el("result-content").innerHTML = `
         <div class="card" style="border-top: 3px solid #34d399;">
@@ -411,7 +467,7 @@
 
         <div class="grid" style="margin-bottom:15px;">
           <div class="card" style="margin:0; border-top:3px solid #fb923c;">
-            <div style="font-size:11px; color:#8ba3c7;">期間売上合計 (${mCount}ヶ月)</div>
+            <div style="font-size:11px; color:#8ba3c7;">期間売上合計 (${mCount}ヶ月 / 想定月間客数: 約${Math.round(estimatedAvgDailyCust * openDays).toLocaleString()}人)</div>
             <div style="font-size:18px; font-weight:bold; color:#fb923c;">${yen(totalRev)}</div>
             <div style="font-size:10px; color:#8ba3c7; margin-top:8px; border-top:1px dashed #1a2b42; padding-top:6px; line-height:1.4;">
               🍽️イートイン: ${yen(totalEI)} (${eiPct}%)<br>🥡テイクアウト: ${yen(totalTO)} (${toPct}%)<br>🛍️物販売上: ${yen(totalRE)} (${rePct}%)
@@ -460,7 +516,6 @@
       switchTab('result');
     }
 
-    // 🚨 ここが重要：画面下部で強制的に初期化処理を走らせる 🚨
     initApp();
   </script>
 </body>
