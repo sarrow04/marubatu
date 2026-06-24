@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>中央線 出店シミュレーター Ver.11</title>
+  <title>中央線 出店シミュレーター Ver.12</title>
   <style>
     body { margin: 0; background: #070e1c; color: #dce8f5; font-family: sans-serif; padding-bottom: 50px; }
     .container { max-width: 600px; margin: 0 auto; padding: 15px; }
@@ -39,14 +39,17 @@
     
     .report-area { width: 100%; height: 120px; background: #070e1c; color: #a8ee9f; border: 1px solid #1a2b42; padding: 8px; border-radius: 5px; font-family: monospace; font-size: 11px; resize: none; margin-top: 8px; outline: none; }
 
-    /* 🆕 ターゲット選択ピル用スタイル */
     .pill { display: inline-block; padding: 6px 12px; background: #0c1528; border: 1px solid #1a2b42; border-radius: 20px; font-size: 11px; color: #8ba3c7; cursor: pointer; user-select: none; margin-bottom: 5px; transition: all 0.2s; }
     .pill.active { background: #38bdf822; border-color: #38bdf8; color: #38bdf8; font-weight: bold; }
+    
+    /* 🆕 計算式可視化ボックス */
+    .calc-box { background: #1a2b42; padding: 12px; border-radius: 8px; font-size: 12px; margin-bottom: 10px; border-left: 4px solid #fb923c; line-height: 1.6; }
+    .calc-highlight { color: #fb923c; font-size: 16px; font-weight: bold; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h2 class="title">中央線 出店シミュレーター <span style="font-size:14px; color:#fb923c;">Ver.11</span></h2>
+    <h2 class="title">中央線 出店シミュレーター <span style="font-size:14px; color:#fb923c;">Ver.12</span></h2>
     
     <div class="grid" style="margin-bottom: 20px;">
       <button id="btn-tab-setup" class="btn btn-primary" onclick="switchTab('setup')">⚙️ 設定</button>
@@ -55,22 +58,19 @@
 
     <div id="view-setup">
       <div class="card">
-        <div style="font-size:12px; color:#8ba3c7; margin-bottom:10px;">1. エリアを選択</div>
+        <div style="font-size:12px; color:#8ba3c7; margin-bottom:10px;">1. エリアと立地を選択</div>
         <select id="station" onchange="updateLocs()"></select>
         <div id="station-info" style="font-size:11px; color:#38bdf8; margin-top:5px; margin-bottom:10px;"></div>
-        
-        <div style="font-size:12px; color:#8ba3c7; margin-bottom:10px; margin-top:15px;">2. 立地を選択</div>
         <div id="loc-container"></div>
       </div>
 
       <div class="card">
-        <div style="font-size:12px; color:#8ba3c7; margin-bottom:10px;">3. 業種テンプレート</div>
+        <div style="font-size:12px; color:#8ba3c7; margin-bottom:10px;">2. 業種テンプレート</div>
         <div class="grid" id="preset-container" style="grid-template-columns: repeat(3, 1fr);"></div>
       </div>
 
       <div class="card">
-        <div style="font-size:12px; color:#8ba3c7; margin-bottom:10px;">4. ターゲット層を選択</div>
-        <div id="target-info" style="font-size:11px; color:#34d399; margin-bottom:10px; font-weight:bold;"></div>
+        <div style="font-size:12px; color:#8ba3c7; margin-bottom:10px;">3. ターゲット層と月間想定客数（自動計算）</div>
         <div style="margin-bottom: 8px;">
           <span style="font-size:11px; color:#8ba3c7; margin-right:10px;">年代:</span>
           <div id="age-container" style="display:inline-block;"></div>
@@ -79,10 +79,23 @@
           <span style="font-size:11px; color:#8ba3c7; margin-right:10px;">性別:</span>
           <div id="gender-container" style="display:inline-block;"></div>
         </div>
+        
+        <div class="grid" style="margin-top: 15px;">
+          <div class="input-group"><label>🎯 ターゲットの利用率 (%)</label><input type="number" id="v-ur" value="10" oninput="liveCalc()"></div>
+          <div class="input-group"><label>🔄 月間平均来店回数/人</label><input type="number" id="v-mv" value="1.5" step="0.1" oninput="liveCalc()"></div>
+          <div class="input-group"><label>⚔️ 周辺の競合店舗数 (店)</label><input type="number" id="v-rival" value="3" oninput="liveCalc()"></div>
+          <div class="input-group" style="border: 1px dashed #38bdf8; padding: 5px; border-radius: 5px; background: #111e36;">
+            <label>🚶‍♂️ 駅乗降客の流入率 (%)</label>
+            <input type="number" id="v-pass-rate" value="0.05" step="0.01" style="background:#1a2b42; color:#38bdf8;" oninput="liveCalc()">
+          </div>
+        </div>
+
+        <div class="calc-box" id="calc-display">
+          </div>
       </div>
 
       <div class="card">
-        <div style="font-size:12px; color:#8ba3c7; margin-bottom:10px;">5. 営業期間（月ごと）</div>
+        <div style="font-size:12px; color:#8ba3c7; margin-bottom:10px;">4. 営業期間（月ごと）</div>
         <div class="grid">
           <div class="input-group"><label>開始月</label><select id="v-start-m"><option value="1">1月</option><option value="2">2月</option><option value="3">3月</option><option value="4" selected>4月</option><option value="5">5月</option><option value="6">6月</option><option value="7">7月</option><option value="8">8月</option><option value="9">9月</option><option value="10">10月</option><option value="11">11月</option><option value="12">12月</option></select></div>
           <div class="input-group"><label>終了月</label><select id="v-end-m"><option value="1">1月</option><option value="2">2月</option><option value="3">3月</option><option value="4">4月</option><option value="5">5月</option><option value="6">6月</option><option value="7">7月</option><option value="8">8月</option><option value="9" selected>9月</option><option value="10">10月</option><option value="11">11月</option><option value="12">12月</option></select></div>
@@ -91,7 +104,7 @@
 
       <div class="card">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-          <div style="font-size:12px; color:#8ba3c7;">6. 売上内訳の割合設定</div>
+          <div style="font-size:12px; color:#8ba3c7;">5. 売上内訳の割合設定</div>
           <div id="pct-total-info" style="font-size:12px; font-weight:bold; color:#34d399;">合計: 100% (OK)</div>
         </div>
         <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px;">
@@ -102,22 +115,17 @@
       </div>
 
       <div class="card">
-        <div style="font-size:12px; color:#8ba3c7; margin-bottom:10px;">7. マーケティング＆詳細数値を調整</div>
+        <div style="font-size:12px; color:#8ba3c7; margin-bottom:10px;">6. 経費・店舗キャパシティ</div>
         <div class="grid">
-          <div class="input-group"><label>⚔️ 周辺の競合店舗数 (店)</label><input type="number" id="v-rival" value="3"></div>
-          <div class="input-group" style="border: 1px dashed #38bdf8; padding: 5px; border-radius: 5px; background: #111e36;">
-            <label>🚶‍♂️ 乗降客の自店への流入率 (%)</label>
-            <input type="number" id="v-pass-rate" value="0.05" step="0.01" style="background:#1a2b42; color:#38bdf8;">
-          </div>
-          
           <div class="input-group"><label>客単価 (円)</label><input type="number" id="v-price" value="1100"></div>
           <div class="input-group"><label>原価率 (%)</label><input type="number" id="v-cr" value="45"></div>
           
-          <div class="input-group"><label>ターゲット層の利用率 (%)</label><input type="number" id="v-ur" value="40"></div>
-          <div class="input-group"><label>年間平均来店回数/人</label><input type="number" id="v-av" value="52"></div>
-          
-          <div class="input-group" style="border: 1px dashed #fb923c; padding: 5px; border-radius: 5px;"><label>🪑 席数 (専業なら0)</label><input type="number" id="v-seats" value="20" style="background:#1a2b42;"></div>
-          <div class="input-group" style="border: 1px dashed #fb923c; padding: 5px; border-radius: 5px;"><label>🔄 想定回転率/日</label><input type="number" id="v-turnover" value="3" style="background:#1a2b42;"></div>
+          <div class="input-group" style="border: 1px dashed #fb923c; padding: 5px; border-radius: 5px;">
+            <label>🪑 席数 (専業なら0)</label><input type="number" id="v-seats" value="20" style="background:#1a2b42;">
+          </div>
+          <div class="input-group" style="border: 1px dashed #fb923c; padding: 5px; border-radius: 5px;">
+            <label>🔄 想定回転率/日</label><input type="number" id="v-turnover" value="3" style="background:#1a2b42;">
+          </div>
 
           <div class="input-group"><label>月間営業日数 (日)</label><input type="number" id="v-opendays" value="25"></div>
           <div class="input-group"><label>🏠 家賃/月 (円)</label><input type="number" id="v-rent" value="500000"></div>
@@ -128,7 +136,7 @@
           <div class="input-group"><label>時給 (円)</label><input type="number" id="v-wage" value="1100"></div>
           <div class="input-group"><label>総労働時間/日 (h)</label><input type="number" id="v-hrs" value="8"></div>
           <div class="input-group"><label>その他固定費/月 (円)</label><input type="number" id="v-fixed" value="40000"></div>
-          <div class="input-group"><label>広告費/月 (円)</label><input type="number" id="v-ad" value="30000"></div>
+          <div class="input-group"><label>広告費/月 (円)</label><input type="number" id="v-ad" value="30000" oninput="liveCalc()"></div>
         </div>
       </div>
 
@@ -145,7 +153,6 @@
   </div>
 
   <script>
-    // 🆕 リアルな年代・性別人口データ（国勢調査ベース目安）
     const POP = {
       "阿佐ヶ谷":{"10代以下":{女:1200,男:1100},"10代":{女:2600,男:2400},"20代":{女:2000,男:1800},"30代":{女:2200,男:2100},"40代":{女:2300,男:2200},"50代":{女:2000,男:1900},"60代":{女:1500,男:1400}},
       "高円寺":{"10代以下":{女:1000,男:900},"10代":{女:2200,男:2100},"20代":{女:2800,男:2700},"30代":{女:2500,男:2400},"40代":{女:2400,男:2300},"50代":{女:1900,男:1800},"60代":{女:1300,男:1200}},
@@ -161,20 +168,21 @@
 
     const ST_DATA = { "阿佐ヶ谷": { pass: 90000 }, "高円寺": { pass: 100000 }, "荻窪": { pass: 170000 }, "中野": { pass: 300000 }, "吉祥寺": { pass: 280000 } };
     
+    // pf (Passenger Factor) = 乗降客流入恩恵（駅利用者のうち何%がこの立地を通るか）
     const LOCS = {
-      "阿佐ヶ谷": [{name:"パールセンター商店街", rent:50, ff:1.2, wk:1.12, rain:0.95, pf:0.6, note:"アーケードで雨に強い。乗降客も流れやすい"}, {name:"スターロード周辺", rent:32, ff:0.75, wk:1.05, rain:0.55, pf:0.4, note:"夜型路地。雨天激減だが駅チカ恩恵あり"}, {name:"住宅街（駅から10分）", rent:18, ff:0.45, wk:0.95, rain:0.7, pf:0.05, note:"完全な地元密着。駅からの流入はほぼゼロ"}],
-      "高円寺": [{name:"高円寺商店街コア", rent:45, ff:1.1, wk:1.25, rain:0.75, pf:0.7, note:"サブカルの聖地。駅利用客が歩く動線"}, {name:"住宅街（庚申通り）", rent:22, ff:0.55, wk:0.9, rain:0.65, pf:0.1, note:"常連率が高い。わざわざ足を運ぶ場所"}],
-      "荻窪": [{name:"駅前ロータリー商圏", rent:65, ff:1.3, wk:1.18, rain:0.8, pf:1.0, note:"乗り換え客多数。乗降客の恩恵MAX"}, {name:"住宅街（西荻側）", rent:24, ff:0.5, wk:0.92, rain:0.68, pf:0.1, note:"落ち着いた住宅街。地元客中心"}],
-      "中野": [{name:"サンモール・BW周辺", rent:85, ff:1.5, wk:1.3, rain:0.85, pf:0.9, note:"集客力最大級。サンモールは最強の動線"}, {name:"住宅街（北口側）", rent:28, ff:0.6, wk:1.0, rain:0.7, pf:0.15, note:"オフィスワーカーの昼需要＋地元住民"}],
-      "吉祥寺": [{name:"サンロード商店街", rent:100, ff:1.35, wk:1.28, rain:0.88, pf:1.0, note:"全天候アーケード。乗降客が雪崩れ込む超一等地"}, {name:"井の頭公園エリア", rent:75, ff:1.4, wk:1.35, rain:0.65, pf:0.6, note:"お洒落激戦区。公園に向かう人の恩恵アリ"}, {name:"住宅街（東側五日市街道）", rent:35, ff:0.55, wk:0.88, rain:0.72, pf:0.05, note:"高所得なファミリー層中心。駅恩恵は薄い"}]
+      "阿佐ヶ谷": [{name:"パールセンター商店街", rent:50, ff:1.2, wk:1.12, rain:0.95, pf:0.6, note:"アーケードで雨に強い"}, {name:"スターロード周辺", rent:32, ff:0.75, wk:1.05, rain:0.55, pf:0.4, note:"夜型路地。雨天激減"}, {name:"住宅街（駅から10分）", rent:18, ff:0.45, wk:0.95, rain:0.7, pf:0.05, note:"完全な地元密着"}],
+      "高円寺": [{name:"高円寺商店街コア", rent:45, ff:1.1, wk:1.25, rain:0.75, pf:0.7, note:"サブカルの聖地"}, {name:"住宅街（庚申通り）", rent:22, ff:0.55, wk:0.9, rain:0.65, pf:0.1, note:"常連率が高い"}],
+      "荻窪": [{name:"駅前ロータリー商圏", rent:65, ff:1.3, wk:1.18, rain:0.8, pf:1.0, note:"乗り換え客多数"}, {name:"住宅街（西荻側）", rent:24, ff:0.5, wk:0.92, rain:0.68, pf:0.1, note:"落ち着いた住宅街"}],
+      "中野": [{name:"サンモール・BW周辺", rent:85, ff:1.5, wk:1.3, rain:0.85, pf:0.9, note:"集客力最大級"}, {name:"住宅街（北口側）", rent:28, ff:0.6, wk:1.0, rain:0.7, pf:0.15, note:"オフィス・地元住民"}],
+      "吉祥寺": [{name:"サンロード商店街", rent:100, ff:1.35, wk:1.28, rain:0.88, pf:1.0, note:"全天候アーケード"}, {name:"井の頭公園エリア", rent:75, ff:1.4, wk:1.35, rain:0.65, pf:0.6, note:"お洒落激戦区"}, {name:"住宅街（東側五日市街道）", rent:35, ff:0.55, wk:0.88, rain:0.72, pf:0.05, note:"高所得なファミリー層"}]
     };
 
     const PRESETS = [
-      {name:"☕ カフェ", p:1100, cr:45, ei:70, to:30, re:0, st:20, tn:3, ag:["20代","30代","40代"], gen:["男","女"]}, 
-      {name:"🍜 ラーメン", p:950, cr:48, ei:95, to:5, re:0, st:12, tn:6, ag:["10代","20代","30代","40代"], gen:["男"]},
-      {name:"🍕 ピザ", p:3500, cr:55, ei:60, to:40, re:0, st:16, tn:2, ag:["20代","30代","40代"], gen:["男","女"]}, 
-      {name:"🍺 居酒屋", p:3200, cr:52, ei:100, to:0, re:0, st:30, tn:1.5, ag:["20代","30代","40代","50代"], gen:["男","女"]},
-      {name:"👗 アパレル", p:4500, cr:60, ei:0, to:0, re:100, st:0, tn:0, ag:["10代","20代","30代"], gen:["女"]} 
+      {name:"☕ カフェ", p:1100, cr:45, ei:70, to:30, re:0, st:20, tn:3, ag:["20代","30代","40代"], gen:["男","女"], ur:10, mv:1.5}, 
+      {name:"🍜 ラーメン", p:950, cr:48, ei:95, to:5, re:0, st:12, tn:6, ag:["10代","20代","30代","40代"], gen:["男"], ur:15, mv:2},
+      {name:"🍕 ピザ", p:3500, cr:55, ei:60, to:40, re:0, st:16, tn:2, ag:["20代","30代","40代"], gen:["男","女"], ur:5, mv:1}, 
+      {name:"🍺 居酒屋", p:3200, cr:52, ei:100, to:0, re:0, st:30, tn:1.5, ag:["20代","30代","40代","50代"], gen:["男","女"], ur:8, mv:1.5},
+      {name:"👗 アパレル", p:4500, cr:60, ei:0, to:0, re:100, st:0, tn:0, ag:["10代","20代","30代"], gen:["女"], ur:3, mv:0.5} 
     ];
 
     const M_DATA = { 1:{tm:0.82,rainP:0.15,temp:"5℃"}, 2:{tm:0.85,rainP:0.18,temp:"6℃"}, 3:{tm:0.95,rainP:0.25,temp:"11℃"}, 4:{tm:1.05,rainP:0.24,temp:"16℃"}, 5:{tm:1.08,rainP:0.22,temp:"21℃"}, 6:{tm:0.92,rainP:0.45,temp:"23℃"}, 7:{tm:0.88,rainP:0.28,temp:"27℃"}, 8:{tm:0.85,rainP:0.25,temp:"29℃"}, 9:{tm:0.90,rainP:0.30,temp:"25℃"}, 10:{tm:1.05,rainP:0.18,temp:"19℃"}, 11:{tm:1.00,rainP:0.18,temp:"13℃"}, 12:{tm:0.88,rainP:0.17,temp:"8℃"} };
@@ -194,7 +202,6 @@
       renderTargets(); updateLocs(); checkTotal();
     }
 
-    // 🆕 ターゲット選択UIの描画と人口計算
     function renderTargets() {
       const ac = el("age-container"); ac.innerHTML = "";
       ALL_AGES.forEach(a => {
@@ -206,21 +213,57 @@
         const isActive = selGenders.includes(g);
         gc.innerHTML += `<span class="pill ${isActive?'active':''}" onclick="toggleGender('${g}')">${g==='男'?'👨男性':'👩女性'}</span>`;
       });
-      updateTargetPop();
+      liveCalc(); // ターゲット変更時も再計算
     }
 
     function toggleAge(a) { if(selAges.includes(a)) selAges = selAges.filter(x => x !== a); else selAges.push(a); renderTargets(); }
     function toggleGender(g) { if(selGenders.includes(g)) selGenders = selGenders.filter(x => x !== g); else selGenders.push(g); renderTargets(); }
 
-    // 🆕 選択された地域のターゲット人口を計算
-    function updateTargetPop() {
+    // 🆕 客数計算の完全ガラス張り（リアルタイム計算・表示）
+    function liveCalc() {
       const st = el("station").value;
+      const loc = LOCS[st][selLocIdx];
       const stData = POP[st];
+      
+      // ① 地元ターゲット人口の計算
       let popCount = 0;
-      selAges.forEach(a => {
-        if(stData[a]) { selGenders.forEach(g => { popCount += (stData[a][g] || 0); }); }
-      });
-      el("target-info").innerText = `🎯 該当する周辺人口: 約${popCount.toLocaleString()}人`;
+      selAges.forEach(a => { if(stData[a]) { selGenders.forEach(g => { popCount += (stData[a][g] || 0); }); } });
+      
+      const ur = val("v-ur");
+      const mv = val("v-mv");
+      const rivalCount = val("v-rival");
+      
+      // ② 地元の月間ベース客数
+      const localMonthlyCustomers = popCount * (ur / 100) * mv;
+      const baseMarketCust = localMonthlyCustomers * (1 / (rivalCount + 1));
+
+      // ③ 駅からの流入客数（1日あたり）
+      const passDaily = ST_DATA[st].pass;
+      const passRate = val("v-pass-rate") / 100;
+      const passDailyCust = passDaily * passRate * loc.pf;
+
+      // 広告ブースト
+      const ad = val("v-ad") || 0;
+      const adBoost = Math.min(0.40, ad / 150000);
+
+      const dayBaseCust = ((baseMarketCust / 30) + passDailyCust) * (1 + adBoost);
+
+      el("calc-display").innerHTML = `
+        <div style="margin-bottom:8px; border-bottom:1px solid #1a2b42; padding-bottom:8px;">
+          <strong>【地元ターゲット市場】</strong><br>
+          該当人口 <span style="color:#34d399;font-weight:bold;">${popCount.toLocaleString()}人</span> × 利用率${ur}% × 月${mv}回 ÷ (競合${rivalCount}店+自店)<br>
+          ＝ 自店のシェア <span style="color:#fb923c;font-weight:bold;">約${Math.round(baseMarketCust).toLocaleString()}人/月</span> (約${Math.round(baseMarketCust/30)}人/日)
+        </div>
+        <div style="margin-bottom:8px; border-bottom:1px solid #1a2b42; padding-bottom:8px;">
+          <strong>【駅・乗降客からの流入】</strong><br>
+          駅乗降客 <span style="color:#34d399;font-weight:bold;">${passDaily.toLocaleString()}人/日</span> × 流入率${(passRate*100).toFixed(2)}% × 立地恩恵${Math.round(loc.pf*100)}%<br>
+          ＝ 自店への流入 <span style="color:#fb923c;font-weight:bold;">約${Math.round(passDailyCust)}人/日</span>
+        </div>
+        <div>
+          広告ブースト効果 : <span style="color:#34d399;font-weight:bold;">+${Math.round(adBoost*100)}%</span><br>
+          👉 <strong>自店のベース客数（晴天・平日基準）: <span class="calc-highlight">約${Math.round(dayBaseCust)}人/日</span></strong>
+        </div>
+      `;
     }
 
     function checkTotal() {
@@ -233,16 +276,17 @@
       const st = el("station").value; const cont = el("loc-container"); cont.innerHTML = ""; selLocIdx = 0;
       el("station-info").innerText = `🚆 推定乗降客数: 約${ST_DATA[st].pass.toLocaleString()}人 / 日`;
       LOCS[st].forEach((l, i) => { 
-        cont.innerHTML += `<label class="radio-label ${i===0?'active':''}" id="lbl-loc-${i}" onclick="selectLoc(${i})"><div style="display:flex; align-items:center; justify-content:space-between;"><div><input type="radio" name="loc" ${i===0?'checked':''} style="margin-right:10px;"><span>${l.name}</span></div><span style="font-size:11px; color:#fb923c;">${l.rent}万</span></div><div class="note">${l.note} (乗降客恩恵: ${Math.round(l.pf * 100)}%)</div></label>`; 
+        cont.innerHTML += `<label class="radio-label ${i===0?'active':''}" id="lbl-loc-${i}" onclick="selectLoc(${i})"><div style="display:flex; align-items:center; justify-content:space-between;"><div><input type="radio" name="loc" ${i===0?'checked':''} style="margin-right:10px;"><span>${l.name}</span></div><span style="font-size:11px; color:#fb923c;">${l.rent}万</span></div><div class="note">${l.note} (立地流入恩恵: ${Math.round(l.pf * 100)}%)</div></label>`; 
       });
       el("v-rent").value = LOCS[st][0].rent * 10000;
-      updateTargetPop();
+      liveCalc();
     }
 
     function selectLoc(idx) {
       selLocIdx = idx; const st = el("station").value;
       LOCS[st].forEach((_, i) => { el(`lbl-loc-${i}`).className = "radio-label" + (i === idx ? " active" : ""); el(`lbl-loc-${i}`).querySelector("input").checked = (i === idx); });
       el("v-rent").value = LOCS[st][idx].rent * 10000;
+      liveCalc();
     }
 
     function applyPreset(idx) { 
@@ -250,6 +294,7 @@
       el("v-price").value = p.p; el("v-cr").value = p.cr; 
       el("v-ei").value = p.ei; el("v-to").value = p.to; el("v-re").value = p.re; 
       el("v-seats").value = p.st; el("v-turnover").value = p.tn;
+      el("v-ur").value = p.ur; el("v-mv").value = p.mv;
       selAges = [...p.ag]; selGenders = [...p.gen];
       renderTargets(); checkTotal(); 
     }
@@ -265,7 +310,7 @@
 
     function runSim() {
       const st = el("station").value; const loc = LOCS[st][selLocIdx];
-      const price = val("v-price"), cr = val("v-cr"), rent = val("v-rent"), ur = val("v-ur"), av = val("v-av");
+      const price = val("v-price"), cr = val("v-cr"), rent = val("v-rent"), ur = val("v-ur"), mv = val("v-mv");
       const wage = val("v-wage"), hrs = val("v-hrs"), fixed = val("v-fixed"), ad = val("v-ad"), openDays = val("v-opendays");
       const startM = val("v-start-m"), endM = val("v-end-m");
       
@@ -280,16 +325,13 @@
       const eiPct = val("v-ei"), toPct = val("v-to"), rePct = val("v-re");
       const adBoost = Math.min(0.40, ad / 150000);
 
-      // 🆕 ① ターゲット人口から「地元市場」の客数を全自動計算
+      // ① 地元月間ベース客数
       let popCount = 0; const stData = POP[st];
       selAges.forEach(a => { if(stData[a]) { selGenders.forEach(g => { popCount += (stData[a][g] || 0); }); } });
-      
-      // 年間地元客数 = 人口 × 利用率 × 来店回数
-      const localAnnualCustomers = popCount * (ur / 100) * av;
-      const localMonthlyCustomers = localAnnualCustomers / 12;
+      const localMonthlyCustomers = popCount * (ur / 100) * mv;
       const baseMarketCust = localMonthlyCustomers * (1 / (rivalCount + 1));
       
-      // ② 駅の乗降客からの流入ベース（1日あたり）
+      // ② 駅の乗降客ベース
       const passDaily = ST_DATA[st].pass;
       const passDailyCust = passDaily * passRate * loc.pf;
 
@@ -396,13 +438,13 @@
       const sensitivityItems = [ { name: "客単価の10%向上", val: impPrice }, { name: "客数の10%増加", val: impCust }, { name: "原価率の10%削減", val: impCr }, { name: "人件費の10%削減", val: impWage }, { name: "家賃の10%削減", val: impRent }, { name: "その他固定費の10%削減", val: impFixed } ].sort((a, b) => b.val - a.val);
       const estimatedAvgDailyCust = totalDailyCustSum / (mCount * 30);
 
-      const reportStr = `■ 中央線 出店シミュレーション レポート (Ver.11)
+      const reportStr = `■ 中央線 出店シミュレーション レポート (Ver.12)
 【基本出店・マーケティング条件】
 ・商圏エリア : ${st}
 ・選択立地   : ${loc.name}
 ・設定家賃   : ${yen(rent)} / 月
 ・店舗キャパ : ${seats}席 (想定回転率: ${turnover}回転/日)
-・周辺市場規模 : ターゲット人口 約${popCount.toLocaleString()}人
+・ターゲット人口 : 約${popCount.toLocaleString()}人
 ・駅乗降客数 : 約${ST_DATA[st].pass.toLocaleString()}人/日 (立地流入恩恵: ${Math.round(loc.pf * 100)}%)
 ・競合店舗数 : ${rivalCount}店
 ・営業期間   : ${startM}月 〜 ${endM}月 (${mCount}ヶ月間 / 月${openDays}日営業)
